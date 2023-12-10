@@ -1,0 +1,19 @@
+# Rust generated files
+target/
+
+# IDE files
+.idea/
+
+# Python generated files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env/
+
+# Editor specific files
+.vscode/
+
