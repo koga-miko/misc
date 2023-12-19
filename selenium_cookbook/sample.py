@@ -1,6 +1,9 @@
-# Chrome
+# Starting:Common
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+
+# Starting:Chrome
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -9,17 +12,16 @@ options = webdriver.ChromeOptions()
 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 driver.set_window_size(width=800,height=600)
 
-# Edge
-from selenium import webdriver
-from selenium.webdriver.common.by import By
+# Starting:Edge
 from selenium.webdriver.edge.service import Service as EdgeService
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
+
 options = webdriver.EdgeOptions()
 #options.add_argument("--headless")
 driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()), options=options)
 driver.set_window_size(width=800,height=600)
 
-# 終了
+# Ending:Common
 driver.quit()
 
 ### ページのアクセス・内容抽出方法 ###
@@ -38,6 +40,12 @@ elms = driver.find_elements(By.XPATH, "//@[contains(@href, 'abc']")
 # 取得したURLを表示
 for elm in elms:
     print("url: " + elm.get_attributes("href"))
+
+# ホバーの一例
+driver.get("https://www.amazon.co.jp/dp/B0CC5FW9C8?ref=KC_GS_GB_JP")
+k = driver.find_element(By.XPATH, '//a[@id="nav-link-accountList"]')
+actions = ActionChains(driver)
+actions.move_to_element(k).perform()
 
 # ユーザー名・パスワード入力する場合
 e = driver.find_element(By.XPATH, "//*[@id='username']")
