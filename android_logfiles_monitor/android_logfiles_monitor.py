@@ -1,8 +1,11 @@
+import os
 import subprocess
 import sys
 import threading
 import signal
 import time
+import PySimpleGUI as sg
+import threading
 
 class LogfilesMonitor:
     def __init__(self, filepaths, ip_address, port_number, serial_name=None, stdout_enable=True, out_logfile_name=None):
@@ -147,6 +150,7 @@ def main():
     Main function that monitors log files in real-time from Android devices.
     This function connects to an Android device using ADB, monitors log files specified in `file_lists`,
     """
+
     # list of log files to monitor
     file_lists = [
         "/mnt/media_rw/tmp/sample.000.log",
@@ -155,22 +159,55 @@ def main():
         "/mnt/media_rw/tmp/sample.003.log",
         "/mnt/media_rw/tmp/sample.004.log",
     ]
-    # create an instance of the LogfilesMonitor class
-    log_monitor = LogfilesMonitor(filepaths = file_lists, ip_address = "localhost", port_number = 5555, serial_name = "emulator-5556", out_logfile_name = "sample.log")
-    # create a signal handler
-    def create_signal_handler():
-        def signal_handler(sig, frame):
-            log_monitor.terminate()
-            sys.exit(0)
-        return signal_handler
-    # set the signal handler
-    signal.signal(signal.SIGINT, create_signal_handler())
-    # connect to the devicex
-    if not log_monitor.adb_connect():
-        sys.exit(1)
-    # run log monitoring
-    log_monitor.run()
-    print("Finished", file=sys.stderr)
 
+    # create a window
+    layout = [
+        [sg.Text("IP Address",size=(22, 1)), sg.InputText("localhost")],
+        [sg.Text("Port Number",size=(22, 1)), sg.InputText("5555")],
+        [sg.Text("Serial Name",size=(22, 1)), sg.InputText("emulator-5556")],
+        [sg.Text("Output Logfile Name",size=(22, 1)), sg.InputText("sample.log")],
+        [sg.Text("Log File Paths")],
+        [sg.Multiline(key="filepaths", size=(80, 5), default_text="\n".join(file_lists))],
+        [sg.Button("Start"), sg.Button("Exit")],
+        [sg.Multiline("", key="output", size=(80, 30), autoscroll=True, reroute_cprint=True, write_only=True)],
+    ]
+    window = sg.Window("Logfiles Monitor", layout)
+    # event loop
+    while True:
+        event, values = window.read()
+        if event == "Start":
+            # get the values from the window
+            ip_address = values[0]
+            port_number = values[1]
+            serial_name = values[2]
+            out_logfile_name = values[3]
+            file_lists = values["filepaths"].split("\n")
+            # create an instance of the LogfilesMonitor class
+            log_monitor = LogfilesMonitor(filepaths = file_lists, ip_address = ip_address, port_number = port_number, serial_name = serial_name, out_logfile_name = out_logfile_name)
+            # create a signal handler
+            def create_signal_handler():
+                def signal_handler(sig, frame):
+                    log_monitor.terminate()
+                    sys.exit(0)
+                return signal_handler
+            # set the signal handler
+            signal.signal(signal.SIGINT, create_signal_handler())
+            # connect to the device
+            if not log_monitor.adb_connect():
+                sys.exit(1)
+            # callback function for log monitoring
+            def callback(filepath_in_target, line):
+                filename = os.path.basename(filepath_in_target)
+                window["output"].print(f"{filename}: {line}", end="")
+            # run log monitoring
+            def run_log_monitor(log_monitor, callback = None):
+                log_monitor.run(callback)
+            log_monitor_thread = threading.Thread(target=run_log_monitor, args=(log_monitor, callback))
+            log_monitor_thread.start()
+        elif event == "Exit":
+            log_monitor.terminate()
+            break
+    window.close()
+    
 if __name__ == "__main__":
     main()
