@@ -86,9 +86,6 @@ class PacketHolder:
         print("Packet holder is stopped successfully.")
         
     def set_packet_hold_status(self, status):
-        if not self.started:
-            print("Process is not started")
-            return
         self.packet_hold_status = status
 
     def send_pending_packets(self):
@@ -108,7 +105,7 @@ class PacketHolder:
 
     def _start_internal(self):
         try:
-            print("Creating server for the this packet holder ...")
+            print("Creating the proxy server for Packet holding ...")
             self.bind_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             print(f"Binding to {self.bind_address}")
             self.bind_socket.bind(self.bind_address)
@@ -119,7 +116,7 @@ class PacketHolder:
         except Exception as e:
             print(f"An error occurred while accepting from {self.bind_address}, error: {str(e)}")
             return
-        print("Server for packet holder is created successfully.")
+        print("Creating the proxy server for Packet holding is created successfully.")
         self._connect_to_server()
         self.c2s_thread = Thread(target=self._handle_client_to_server)
         self.c2s_thread.start()

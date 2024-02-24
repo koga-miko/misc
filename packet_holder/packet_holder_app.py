@@ -7,12 +7,12 @@ layout = [
     [sg.Text('Server IP Address:', size=(14, 1)), sg.InputText('localhost', key='server_ip'), sg.Text('Port:', size=(4, 1)), sg.InputText('6000', key='server_port',size=(10, 1))],
     [sg.Text('Keyword:', size=(14, 1)), sg.InputText('333', key='keyword', enable_events=True), sg.Checkbox('Enable packet holding', key='enable_packet_holding', default=False, enable_events=True)],
     [sg.Button('Start'), sg.Button('Stop'), sg.Button('Send Pending Packets')],
-    [sg.Text('Log:', size=(14, 1)), sg.Checkbox('Output only the packets that are pending or have been sent.', key='log_only_pending_packets', default=False, enable_events=True)],
+    [sg.Text('Log:', size=(14, 1)), sg.Checkbox('Outputs only held packets or those sent after being released from hold.', key='log_only_pending_packets', default=False, enable_events=True)],
     [sg.Output(size=(160, 32), key='output',font='System 10')]
 ]
 
 # Create the window
-window = sg.Window('Packet Holder', layout)
+window = sg.Window('Packet Holder [Not Running]', layout)
 
 # Initialize packet holder
 packet_holder = packet_holder.PacketHolder()
@@ -32,9 +32,11 @@ while True:
         # Start packet holder with the provided values
         packet_holder.register_pending_keyword(keyword)
         packet_holder.start(packet_holder_ip, packet_holder_port, server_ip, server_port)
+        window.set_title('Packet Holder [Running]')
     elif event == 'Stop':
         # Stop packet holder
         packet_holder.stop()
+        window.set_title('Packet Holder [Not Running]')
     elif event == 'Send Pending Packets':
         # Send pending packets
         packet_holder.send_pending_packets()
