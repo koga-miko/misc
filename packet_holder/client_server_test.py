@@ -2,7 +2,6 @@
 import socket
 import threading
 import time
-from packet_holder import PacketHolder
 
 aborted = False
 def server(server_address):
