@@ -10,6 +10,8 @@ def server(server_address):
     server_socket.bind(server_address)
     server_socket.listen(1)
     server_socket.settimeout(3)
+    cnt = 0
+    resp_data = ["aaa","bbb","ccc","ddd","eee"]
     while True:
         try:
             server_for_responce_socket = None
@@ -23,7 +25,12 @@ def server(server_address):
             data = server_for_responce_socket.recv(1024)
             if not data or aborted:
                 break
-            server_for_responce_socket.sendall(b"Received:"+data)
+            server_for_responce_socket.sendall(b"Rsponce:"+resp_data[cnt].encode())
+            if cnt < 4:
+                cnt += 1
+            else:
+                cnt = 0
+
     if server_for_responce_socket:
         server_for_responce_socket.close()
     server_socket.close()

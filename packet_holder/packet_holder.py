@@ -5,6 +5,7 @@
 # ------------------------------------------------------------------------------
 # Imports
 # ------------------------------------------------------------------------------
+import collections
 import datetime
 import queue
 import re
@@ -15,6 +16,50 @@ import time
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
+# HoldingRule
+# ------------------------------------------------------------------------------
+class HoldingRule:
+    RELEASE_TYPE_NONE = 0
+    RELEASE_TYPE_FROM_SERVER = 1
+    RELEASE_TYPE_FROM_CLIENT = 2
+    def __init__(self, holding_keyword="", release_type=RELEASE_TYPE_NONE, release_keyword="", enabled=False):
+        self.holding_keyword = holding_keyword
+        self.release_type = release_type
+        self.release_keyword = release_keyword
+        self.enabled = enabled
+
+    def get_holding_keyword(self):
+        return self.holding_keyword
+    
+    def get_release_type(self):
+        return self.release_type
+    
+    def get_release_keyword(self):
+        return self.release_keyword
+    
+    def is_enabled(self):
+        return self.enabled
+    
+    def set_holding_keyword(self, holding_keyword):
+        self.holding_keyword = holding_keyword
+
+    def set_release_type(self, release_type):
+        self.release_type = release_type
+
+    def set_release_keyword(self, release_keyword):
+        self.release_keyword = release_keyword
+
+    def enable(self):   
+        self.enabled = True
+    
+    def disable(self):
+        self.enabled = False
+
+    def __str__(self):
+        return f"HoldingRule: holding_keyword={self.holding_keyword}, release_type={self.release_type}, release_keyword={self.release_keyword}, enabled={self.enabled}"
+    
+
+# ------------------------------------------------------------------------------
 # PacketHolder
 # ------------------------------------------------------------------------------
 class PacketHolder:
@@ -22,11 +67,11 @@ class PacketHolder:
     RETRY_COUNT = 100
     RETRY_INTERBAL = 3
 
-    def __init__(self):
-        self.packet_hold_status = False
-        self.keywords = []
+    def __init__(self, num_of_rules=1):
+        self.holding_rules = [HoldingRule() for _ in range(num_of_rules)]
         self.server_sending_lock = Lock()
-        self.queue = queue.Queue()
+        self.queue = collections.deque()
+        self.queue_lock = Lock()
         self.bind_address = None
         self.client_socket = None
         self.client_address = None
@@ -37,21 +82,17 @@ class PacketHolder:
         self.c2s_thread = None
         self.s2c_thread = None
         self.starting_thread = None
-        self.output_only_pending_packets = False
+        self.output_only_holding_packets = False
 
-    def register_pending_keyword(self, keyword):
-        if not isinstance(keyword, str):
-            raise ValueError("keyword should be a string")
-        self.keywords.append(keyword)
-
-    def register_pending_keywords(self, keywords):
-        if not isinstance(keywords, list):
-            raise ValueError("keywords should be a list")
-        self.keywords += keywords
-
-    def clear_pending_keywords(self):
-        self.keywords = []
-
+    def set_holding_rule(self, index=0, holding_keyword="", release_type=HoldingRule.RELEASE_TYPE_NONE, release_keyword="", enable=False):
+        if index < 0 or index >= len(self.holding_rules):
+            print(f"Invalid index: {index}")
+            return
+        self.holding_rules[index].set_holding_keyword(holding_keyword)
+        self.holding_rules[index].set_release_type(release_type)
+        self.holding_rules[index].set_release_keyword(release_keyword)
+        self.holding_rules[index].enable() if enable else self.holding_rules[index].disable()
+    
     # Start the packet holder. this method will block until the server is stopped.
     def start(self, packet_holder_ip, packet_holder_port, server_ip, server_port, wait=False):
         if self.started:
@@ -85,23 +126,18 @@ class PacketHolder:
         self.started = False
         print("Packet holder is stopped successfully.")
         
-    def set_packet_hold_status(self, status):
-        self.packet_hold_status = status
-
-    def send_pending_packets(self):
+    def send_all_holding_packets(self):
         if not self.started:
             print("Process is not started")
             return
-        packet = self._dequeue_packet()
-        while packet is not None:
+        for packet in self._dequeue_packets():
             self._pass_through_client_to_server_delayed(packet)
-            packet = self._dequeue_packet()
     
-    def set_output_only_pending_packets(self, status):
+    def set_output_only_holding_packets(self, status):
         if status:
-            self.output_only_pending_packets = True
+            self.output_only_holding_packets = True
         else:
-            self.output_only_pending_packets = False
+            self.output_only_holding_packets = False
 
     def _start_internal(self):
         try:
@@ -175,15 +211,18 @@ class PacketHolder:
                 print("recv() from client is failed")
                 break
             queueing = False
-            if self.packet_hold_status:
-                for keyword in self.keywords:
-                    if re.search(keyword, packet.decode('utf-8', 'ignore')):
-                        print(f"[Data]{datetime.datetime.now()}[ ToSVR ][Pending]: {packet.decode('utf-8', 'ignore')}");
-                        self._enqueue_packet(packet)
+            for holding_rule in self.holding_rules:
+                if holding_rule.is_enabled():
+                    packet_str = packet.decode('utf-8', 'ignore')
+                    if holding_rule is not None and re.search(holding_rule.get_holding_keyword(), packet_str):
+                        print(f"[Data]{datetime.datetime.now()}[ ToSVR ][Holding]: {packet_str}")
+                        self._enqueue_packet(packet, holding_rule)
                         queueing = True
                         break
             if not queueing:
                 self._pass_through_client_to_server(packet)
+                for packet in self._dequeue_packets(release_type=HoldingRule.RELEASE_TYPE_FROM_CLIENT, packet=packet):
+                    self._pass_through_client_to_server_delayed(packet)
     
     def _handle_server_to_client(self):
         while True:
@@ -197,35 +236,62 @@ class PacketHolder:
                 print("recv() from server is failed")
                 break
             self._pass_through_server_to_client(packet)
+            for packet in self._dequeue_packets(release_type=HoldingRule.RELEASE_TYPE_FROM_SERVER, packet=packet):
+                self._pass_through_client_to_server_delayed(packet)
 
-    def _enqueue_packet(self, packet):
-        self.queue.put(packet)
+    def _enqueue_packet(self, packet, holding_rule):
+        with self.queue_lock:
+            self.queue.append((packet, holding_rule))
 
-    def _dequeue_packet(self):
-        try:
-            return self.queue.get_nowait()
-        except queue.Empty:
-            return None
+
+    def _dequeue_packets(self, release_type=None, packet=None):
+        result = []
+        with self.queue_lock:
+            new_queue = collections.deque()
+            while True:
+                qdata = None
+                try:
+                    qdata = self.queue.popleft()
+                except IndexError:
+                    break
+                if release_type is None:
+                    result.append(qdata[0])
+                elif packet is None:
+                    result.append(qdata[0])
+                elif release_type == qdata[1].get_release_type() and re.search(qdata[1].get_release_keyword(), packet.decode('utf-8', 'ignore')):
+                    result.append(qdata[0])
+                else:
+                    new_queue.append(qdata)
+            self.queue = new_queue
+        return result
 
     def _pass_through_client_to_server_delayed(self, packet):
         with self.server_sending_lock:
             print(f"[Data]{datetime.datetime.now()}[ ToSVR ][Delayed]: {packet.decode('utf-8', 'ignore')}");
-            self.server_socket.sendall(packet)
+            try:
+                self.server_socket.sendall(packet)
+            except  ConnectionAbortedError as e:
+                print(f"sendall() to server is failed due to an error: {str(e)}")
 
     def _pass_through_client_to_server(self, packet):
         with self.server_sending_lock:
-            if not self.output_only_pending_packets:
+            if not self.output_only_holding_packets:
                 print(f"[Data]{datetime.datetime.now()}[ ToSVR ][PassThr]: {packet.decode('utf-8', 'ignore')}");
-            self.server_socket.sendall(packet)
+            try:
+                self.server_socket.sendall(packet)
+            except ConnectionAbortedError as e:
+                print(f"sendall() to server is failed due to an error: {str(e)}")
 
     def _pass_through_server_to_client(self, packet):
         if self.client_socket is None:
             print("Client socket is None")
             return
-        if not self.output_only_pending_packets:
+        if not self.output_only_holding_packets:
             print(f"[Data]{datetime.datetime.now()}[FromSVR][PassThr]: {packet.decode('utf-8', 'ignore')}");
-        self.client_socket.sendall(packet)
-
+            try:
+                self.client_socket.sendall(packet)
+            except ConnectionAbortedError as e:
+                print(f"sendall() to client is failed due to an error: {str(e)}")
 
 # ------------------------------------------------------------------------------
 # Main (for sample usage)
@@ -236,5 +302,5 @@ if __name__ == "__main__":
     real_server_ip = "localhost"
     real_server_port = 6000
     packet_holder = PacketHolder()
-    packet_holder.register_pending_keyword("333")
+    packet_holder.set_holding_rule(index=0, holding_keyword="333", enable=True)
     packet_holder.start(packet_holder_ip, packet_holder_port, real_server_ip, real_server_port, wait=True)

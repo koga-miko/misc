@@ -30,7 +30,7 @@ while True:
         keyword = values['keyword']
         
         # Start packet holder with the provided values
-        packet_holder.register_pending_keyword(keyword)
+        packet_holder.set_holding_rule(holding_keyword=keyword)
         packet_holder.start(packet_holder_ip, packet_holder_port, server_ip, server_port)
         window.set_title('Packet Holder [Running]')
     elif event == 'Stop':
@@ -39,18 +39,16 @@ while True:
         window.set_title('Packet Holder [Not Running]')
     elif event == 'Send Pending Packets':
         # Send pending packets
-        packet_holder.send_pending_packets()
+        packet_holder.send_all_holding_packets()
     elif event == 'keyword':
-        # Register pending keyword
-        packet_holder.clear_pending_keywords()
         if values['keyword']:
-            packet_holder.register_pending_keyword(values['keyword'])
+            packet_holder.set_holding_rule(holding_keyword=values['keyword'])
     elif event == 'log_only_pending_packets':
         # Set output only pending packets
-        packet_holder.set_output_only_pending_packets(values['log_only_pending_packets'])
+        packet_holder.set_output_only_holding_packets(values['log_only_pending_packets'])
     elif event == 'enable_packet_holding':
         # Set packet hold status
-        packet_holder.set_packet_hold_status(values['enable_packet_holding'])
+        packet_holder.set_holding_rule(holding_keyword=values['keyword'], enable=values['enable_packet_holding'])
 
 # Close the window
 window.close()
