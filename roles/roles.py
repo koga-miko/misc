@@ -1,8 +1,7 @@
 import sys
 import os
 import re
-from pypdf import PdfReader
-
+import pdf_to_linearray
 
 '''
 役職抽出クラス
@@ -10,22 +9,10 @@ from pypdf import PdfReader
 class RolesPicker:
     #   役職の階層を定義する
     roles_hierarchy = [
-        {
-            "hierarchy_names_regex": r"事業部",
-            "role_name_regex": r"事業部長"
-        },
-        {
-            "hierarchy_names_regex": r"部",
-            "role_name_regex": r"部長"
-        },
-        {
-            "hierarchy_names_regex": r"室",
-            "role_name_regex": r"(?:室長|主査)"
-        },
-        {
-            "hierarchy_names_regex": r"課",
-            "role_name_regex": r"(?:課長|係長|主任|リーダー)"
-        },
+        { "hierarchy_names_regex": r"事業部", "role_name_regex": r"事業部長" },
+        { "hierarchy_names_regex": r"部", "role_name_regex": r"部長" },
+        { "hierarchy_names_regex": r"室", "role_name_regex": r"(?:室長|主査)" },
+        { "hierarchy_names_regex": r"課", "role_name_regex": r"(?:課長|係長|主任|リーダー)"},
     ]
 
     #   <～(事業部or部or室or課など)> <役職> <氏名> [メモ] という形式の文字列を抽出する
@@ -50,7 +37,7 @@ class RolesPicker:
     グループ名、役職、氏名、メモをタブ区切りで出力データに追加する
     '''
     def append_data(self, group_names, role_name, name, memo):
-        self.output_data.append(f"\t".join(group_names) + f"\t{role_name}\t{name}\t{memo}")
+        self.output_data.append({"グループ名":group_names, "役割名":role_name, "氏名":name, "メモ":memo})
 
     '''
     出力データをファイルに出力する
@@ -59,7 +46,16 @@ class RolesPicker:
         with open(output_file, "w", encoding="utf-8") as f:
             if title != "":
                 f.write(title + "\n")
-            f.write("\n".join(self.output_data))
+            f.write(self.output_data_to_string())
+    
+    '''
+    出力データを文字列に変換する
+    '''
+    def output_data_to_string(self):
+        output_str = ""
+        for data in self.output_data:
+            output_str += "\t".join(data["グループ名"]) + "\t" + data["役割名"] + "\t" + data["氏名"] + "\t" + data["メモ"] + "\n"
+        return output_str
 
     '''
     正規表現のマッチ結果から氏名とメモを取得する
@@ -81,39 +77,34 @@ class RolesPicker:
         role_name = ""
         name = ""
         memo = ""
-        reader = PdfReader(input_file)
-        number_of_pages = len(reader.pages)
-        for page_num in range(number_of_pages):
-            text = reader.pages[page_num].extract_text()
-            lines = text.splitlines()
-            for line in lines:
-                for index, role_item in enumerate(RolesPicker.roles_hierarchy):
-                    format_text = RolesPicker.templete_regex.replace(
-                        "%hierarchy_names_regex%"
-                        , role_item["hierarchy_names_regex"])
-                    format_text = format_text.replace(
-                        "%role_name_regex%"
-                        , role_item["role_name_regex"])
-                    match = re.match(format_text, line)
+        for line in pdf_to_linearray.exec(input_file):
+            for index, role_item in enumerate(RolesPicker.roles_hierarchy):
+                format_text = RolesPicker.templete_regex.replace(
+                    "%hierarchy_names_regex%"
+                    , role_item["hierarchy_names_regex"])
+                format_text = format_text.replace(
+                    "%role_name_regex%"
+                    , role_item["role_name_regex"])
+                match = re.match(format_text, line)
+                if match:
+                    self.group_names[index] = match.group(1)
+                    # 一つ下以降の階層のグループ名をクリア
+                    for i in range(index + 1, len(RolesPicker.roles_hierarchy)):
+                        self.group_names[i] = ""
+                    role_name = match.group(2)
+                    # 氏名と氏名の後ろにメモがあればそれも取得
+                    (name, memo) = self.get_name_and_memo(match, 3)
+                    self.append_data(self.group_names, role_name, name, memo)
+                else:
+                    format_no_groupname_text = RolesPicker.templete_no_groupname_regex.replace(
+                            "%role_name_regex%"
+                            , role_item["role_name_regex"])
+                    match = re.match(format_no_groupname_text, line)
                     if match:
-                        self.group_names[index] = match.group(1)
-                        # 一つ下以降の階層のグループ名をクリア
-                        for i in range(index + 1, len(RolesPicker.roles_hierarchy)):
-                            self.group_names[i] = ""
-                        role_name = match.group(2)
+                        role_name = match.group(1)
                         # 氏名と氏名の後ろにメモがあればそれも取得
-                        (name, memo) = self.get_name_and_memo(match, 3)
+                        (name, memo) = self.get_name_and_memo(match, 2)
                         self.append_data(self.group_names, role_name, name, memo)
-                    else:
-                        format_no_groupname_text = RolesPicker.templete_no_groupname_regex.replace(
-                                "%role_name_regex%"
-                                , role_item["role_name_regex"])
-                        match = re.match(format_no_groupname_text, line)
-                        if match:
-                            role_name = match.group(1)
-                            # 氏名と氏名の後ろにメモがあればそれも取得
-                            (name, memo) = self.get_name_and_memo(match, 2)
-                            self.append_data(self.group_names, role_name, name, memo)
 
     '''
     PDFファイルからデータを抽出してファイルに出力する
@@ -128,7 +119,7 @@ class RolesPicker:
 
 #   メイン処理
 def main(argv):
-    if len(argv) == 0 or argv[1] == "-h" or argv[1] == "--help":
+    if len(argv) == 0 or argv[0] == "-h" or argv[0] == "--help":
         print("Usage: python roles.py [input_pdf_file1] [input_pdf_file2] ... [input_pdf_fileN]")
         exit(0)
     RolesPicker.make_pickup_data_and_output(argv)
