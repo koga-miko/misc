@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package usage;
+
+// サービスの定義
+service UsageService {
+  // データ使用量の取得メソッド
+  rpc GetUsage(UsageRequest) returns (UsageResponse) {}
+}
+
+// リクエストの形式
+message UsageRequest {
+  int64 start_time = 1;
+  int64 end_time = 2;
+}
+
+// レスポンスの形式
+message UsageResponse {
+  int64 data_usage = 1;
+}
