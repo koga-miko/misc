@@ -14,8 +14,9 @@
   "contributes": {
     "commands": [
       {
-        "command": "copipe.helloWorld",
-        "title": "Hello World"
+        "command": "copipe.execute",
+        "key": "ctrl+alt+p",
+        "title": "Copy & Paste & Execute"
       }
     ]
   },
