@@ -3,7 +3,7 @@
   APIKeyに変更する必要があります。
 """
 import openai
-openai.api_key = "sk-9lYgAf7o1LfcJobMerJgRy1jWZwpTU-ejUMtoHF7VGT3BlbkFJ15eBg04h2UYuwGNbywrweVav6s-F9j33H3BGP2du0A"
+openai.api_key = "***"
 
 class ChatGPTAPI:
     def __init__(self, system_setting):
