@@ -6,15 +6,16 @@ from langchain.indexes import VectorstoreIndexCreator
 
 loader = PyPDFLoader("menyu-reishuu.pdf")
 
-embeddings = OllamaEmbeddings(model="mxbai-embed-large")
-llm = OllamaLLM(model="gemma2:27b")
+embeddings = OllamaEmbeddings(model="gemma2")
+llm = OllamaLLM(model="gemma2")
 
 index = VectorstoreIndexCreator(
     vectorstore_cls=Chroma,
     embedding=embeddings
 ).from_loaders([loader])
 
-query = "しぼルトメニューとは何ですか?日本語で回答して下さい。"
+# query = "しぼルトメニューとは何ですか?日本語で回答して下さい。"
+query = "しぼルトメニューについて、具体的なメニューを5点ほど教えてください"
 
 answer = index.query(query, llm=llm)
 print(answer)
