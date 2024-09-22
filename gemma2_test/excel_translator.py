@@ -7,14 +7,14 @@
 import sys
 import re
 import gemma2_accessor
-import xlwings as xw
+import openpyxl
 import logging
 
 # ログの設定
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ExcelTranslator:
-    def __init__(self, xlsx_file, lang_name = None):
+    def __init__(self, xlsx_file, lang_name=None):
         self.xlsx_file = xlsx_file
         self.lang_name = lang_name
         self.gemma2_accessor = gemma2_accessor.Gemma2Accessor()
@@ -22,22 +22,20 @@ class ExcelTranslator:
 
     def translate(self):
         logging.info("Starting translation process")
-        app = xw.App(visible=True)
-        wb = app.books.open(self.xlsx_file)
-        sht = wb.sheets[0]
+        wb = openpyxl.load_workbook(self.xlsx_file)
+        sht = wb.active
         logging.debug("Excel file opened successfully")
 
         if self.lang_name is None:
-            self.lang_name = sht.range("B1").value
-            if self.lang_name is False:
+            self.lang_name = sht['B1'].value
+            if not self.lang_name:
                 self.lang_name = "英語"
             logging.info(f"Translation language set to: {self.lang_name}")
 
-        rng = sht.range("A1").expand("down")
-        for cell in rng:
-            if cell.row == 1:
+        for row_idx, row in enumerate(sht.iter_rows(min_row=2, max_col=1, values_only=True), start=2):
+            if row[0] is None:
                 continue
-            text = cell.value
+            text = row[0]
             logging.debug(f"Translating text: {text}")
 
             translated_text = self.gemma2_accessor.translate(text, lang_name=self.lang_name)
@@ -46,11 +44,10 @@ class ExcelTranslator:
             translated_text = re.sub(r"\n\s*\n.*", "", translated_text, flags=re.DOTALL).split("\n")[0]
             logging.debug(f"Processed translated text: {translated_text}")
 
-            cell.offset(0, 1).value = translated_text
-            logging.debug(f"Written translated text to cell: {cell.offset(0, 1).address}")
+            sht.cell(row=row_idx, column=2, value=translated_text)
+            logging.debug(f"Written translated text to cell: B{row_idx}")
 
-        wb.save()
-        wb.close()
+        wb.save(self.xlsx_file)
         logging.info("Translation process completed and file saved")
 
 def main():
