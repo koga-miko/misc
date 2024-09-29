@@ -17,3 +17,8 @@ venv/
 # Editor specific files
 .vscode/
 
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Qdrant Data files
+qdrant_storage/
