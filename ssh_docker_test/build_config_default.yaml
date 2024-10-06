@@ -5,31 +5,32 @@
 #   $(REVISION_ID_FOR_BASELINE) - The revision id for the baseline.
 #   $(REGION_VALUE) - The region value.
 # 全てのキー名称は、予約語です。変更しないでください。（データの変更・追加・削除は自由です）
-build_script:
-  script_version: "1.0.0"
-  ssh_info:
-    ip: 192.168.3.21
-    port: 22
-    user: yoshi
-    pass: yoshi
-  region_values:
-    - name: JP-region
-      value: JP
+build_config_version: "1.0.0"
+ssh_info:
+  ip: 192.168.3.21
+  port: 22
+  user: yoshi
+  pass: yoshi
+region_info:
+  default_value: NA
+  values:
     - name: NA-region
       value: NA
-  commands_groups:
-    - name: Run docker container
-      exec_commands:
-        - docker run -dit --name busybox_container busybox sh
-    - name: Commands for the first settings of docker container
-      exec_commands:
-        - docker attach busybox_container
-        - echo This environment is in the container
-        - echo BUILD_NAME: $(BUILD_NAME)
-        - echo RELEASE_VERSION: $(RELEASE_VERSION)
-        - echo REVISION_ID_FOR_BASELINE: $(REVISION_ID_FOR_BASELINE)
-        - echo REGION_VALUE: $(REGION_VALUE)
-        - ^p^q
-    - name: exec on the host
-      exec_commands:
-        - echo This environment is in the host.
+    - name: JP-region
+      value: JP
+commands_for_preparing:
+  - name: Run docker container
+    exec_commands:
+      - docker run -dit --name busybox_container busybox sh
+  - name: Commands for the first settings of docker container
+    exec_commands:
+      - docker attach busybox_container
+      - echo This environment is in the container
+      - echo BUILD_NAME: $(BUILD_NAME)
+      - echo RELEASE_VERSION: $(RELEASE_VERSION)
+      - echo REVISION_ID_FOR_BASELINE: $(REVISION_ID_FOR_BASELINE)
+      - echo REGION_VALUE: $(REGION_VALUE)
+      - ^p^q
+  - name: exec on the host
+    exec_commands:
+      - echo This environment is in the host.

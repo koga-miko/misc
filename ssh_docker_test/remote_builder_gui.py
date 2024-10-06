@@ -1,10 +1,13 @@
+# Description: ビルド管理ツールのGUIを作成する
+
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 import threading
 import time
-
-class RemoteDockerBuilderGUI:
+from remote_builder import RemoteBuilder
+class RemoteBuilderGUI:
     def __init__(self):
+        self.remote_builder = RemoteBuilder("./build_config.yaml")
         self.root = tk.Tk()
         self.root.title("ビルド管理ツール")
         self.root.geometry("600x400")
@@ -27,27 +30,18 @@ class RemoteDockerBuilderGUI:
         self.product_list = ttk.Combobox(self.root, values=["品番1", "品番2"], width=47)
         self.product_list.grid(row=3, column=1, padx=10, pady=5)
 
-        tk.Label(self.root, text="CCCソフトウェアの格納パス:").grid(row=4, column=0, sticky=tk.W, padx=10, pady=5)
-        self.ccc_path = tk.Entry(self.root, width=50)
-        self.ccc_path.grid(row=4, column=1, padx=10, pady=5)
-
-        tk.Label(self.root, text="ビルド前に実行させたい設定ファイル:").grid(row=5, column=0, sticky=tk.W, padx=10, pady=5)
-        self.prebuild_config = tk.Entry(self.root, width=50)
-        self.prebuild_config.grid(row=5, column=1, padx=10, pady=5)
-
-        tk.Label(self.root, text="ビルドの実行ログ格納パス:").grid(row=6, column=0, sticky=tk.W, padx=10, pady=5)
-        self.log_path = tk.Entry(self.root, width=50)
-        self.log_path.grid(row=6, column=1, padx=10, pady=5)
-
         tk.Label(self.root, text="ビルドの実行ステータス:").grid(row=7, column=0, sticky=tk.W, padx=10, pady=5)
         self.status_text = scrolledtext.ScrolledText(self.root, width=50, height=10)
-        self.status_text.grid(row=7, column=1, padx=10, pady=5)
+        self.status_text.grid(row=4, column=1, padx=10, pady=5)
         
+        self.run_button = tk.Button(self.root, text="ビルド準備", command=self.prepare_build)
+        self.run_button.grid(row=5, column=0, padx=10, pady=10)
+
         self.run_button = tk.Button(self.root, text="ビルド実行", command=self.run_build)
-        self.run_button.grid(row=8, column=0, padx=10, pady=10)
+        self.run_button.grid(row=5, column=1, padx=10, pady=10)
 
         self.cancel_button = tk.Button(self.root, text="ビルドキャンセル", command=self.cancel_build)
-        self.cancel_button.grid(row=8, column=1, padx=10, pady=10)
+        self.cancel_button.grid(row=5, column=2, padx=10, pady=10)
 
     def run_build(self):
         # 各TextBoxや選択リストの情報を取得
@@ -55,18 +49,12 @@ class RemoteDockerBuilderGUI:
         version = self.release_version.get()
         branch = self.branch_name.get()
         product = self.product_list.get()
-        ccc = self.ccc_path.get()
-        prebuild = self.prebuild_config.get()
-        log = self.log_path.get()
 
         # 取得した情報をビルド実行ステータスに表示
         self.status_text.insert(tk.END, f"ビルド用設定ファイルのパス: {config}\n")
         self.status_text.insert(tk.END, f"リリースバージョン: {version}\n")
         self.status_text.insert(tk.END, f"baselineのブランチ名: {branch}\n")
         self.status_text.insert(tk.END, f"仕向け品番: {product}\n")
-        self.status_text.insert(tk.END, f"CCCソフトウェアの格納パス: {ccc}\n")
-        self.status_text.insert(tk.END, f"ビルド前に実行させたい設定ファイル: {prebuild}\n")
-        self.status_text.insert(tk.END, f"ビルドの実行ログ格納パス: {log}\n")
         self.status_text.insert(tk.END, "ビルドを実行中...\n")
 
         self.run_button.config(state=tk.DISABLED)
@@ -90,6 +78,7 @@ class RemoteDockerBuilderGUI:
         self.root.mainloop()
 
 if __name__ == "__main__":
-    gui = RemoteDockerBuilderGUI()
-    gui.show()
+    gui = RemoteBuilderGUI()
+    gui.show() # メインループを開始
+
     
