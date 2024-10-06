@@ -1,0 +1,47 @@
+# Description: This file contains the default values for the build script.
+# 以下は、規定の埋め込み変数です。これらは、ビルドスクリプトの実行時に置換されます。名称は変更しないでください。
+#   $(RELEASE_VERSION) - The release version of the project.
+#   $(REVISION_ID_FOR_BASELINE) - The revision id for the baseline.
+#   $(REGION_VALUE) - The region value.
+# 全てのキー名称は、予約語です。変更しないでください。（データの変更・追加・削除は自由です）
+build_script:
+  script_version: "1.0.0"
+  ssh_info:
+    ip: host_ip
+    port: 22
+    user: host_user_name
+    pass: host_user_password
+  container_info:
+    image: container_image
+    container_name: container_name
+  region_values:
+    - name: US-region
+      value: US
+    - name: OC-region
+      value: OC
+  commands_groups:
+    - name: Commands for the first settings of docker
+      exec_commands:
+        - echo Building the project...${RELEASE_VERSION}
+        - echo Building the project...${REVISION_ID_FOR_BASELINE}
+        - echo Building the project...
+      completion_criteria_logs:
+        - Building the project...
+        - Building the project...
+        - Building the project...
+      timeout_sec: 10
+    - name: Copy the engine files to the docker
+      exec_commands:
+        - echo Building the project...
+        - echo Building the project...
+        - echo Building the project...
+    - name: Copy the engine files to the docker
+      exec_commands:
+        - echo Building the project...
+        - echo Building the project...
+        - echo Building the project...
+    - name: Copy the engine files to the docker
+      exec_commands:
+        - echo Building the project...
+        - echo Building the project...
+        - echo Building the project...
