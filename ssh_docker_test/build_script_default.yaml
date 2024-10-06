@@ -11,9 +11,6 @@ build_script:
     port: 22
     user: host_user_name
     pass: host_user_password
-  container_info:
-    image: container_image
-    container_name: container_name
   region_values:
     - name: US-region
       value: US
