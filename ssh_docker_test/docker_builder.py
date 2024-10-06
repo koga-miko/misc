@@ -15,8 +15,12 @@ class RemoteDockerAccessor:
     def cancel_build(self, cancel_result_listener):
         pass
 
-    def set_config(self, config_json):
+    def set_config(self, config_yaml):
         pass
 
     def close(self):
         self.ssh.close()
+
+if __name__ == '__main__':
+    # テスト用
+    rda = RemoteDockerAccessor()

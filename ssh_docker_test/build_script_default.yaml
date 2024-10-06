@@ -1,5 +1,6 @@
 # Description: This file contains the default values for the build script.
 # 以下は、規定の埋め込み変数です。これらは、ビルドスクリプトの実行時に置換されます。名称は変更しないでください。
+#   $(BUILD_NAME) - The name of the build.
 #   $(RELEASE_VERSION) - The release version of the project.
 #   $(REVISION_ID_FOR_BASELINE) - The revision id for the baseline.
 #   $(REGION_VALUE) - The region value.
@@ -7,38 +8,28 @@
 build_script:
   script_version: "1.0.0"
   ssh_info:
-    ip: host_ip
+    ip: 192.168.3.21
     port: 22
-    user: host_user_name
-    pass: host_user_password
+    user: yoshi
+    pass: yoshi
   region_values:
-    - name: US-region
-      value: US
-    - name: OC-region
-      value: OC
+    - name: JP-region
+      value: JP
+    - name: NA-region
+      value: NA
   commands_groups:
-    - name: Commands for the first settings of docker
+    - name: Run docker container
       exec_commands:
-        - echo Building the project...${RELEASE_VERSION}
-        - echo Building the project...${REVISION_ID_FOR_BASELINE}
-        - echo Building the project...
-      completion_criteria_logs:
-        - Building the project...
-        - Building the project...
-        - Building the project...
-      timeout_sec: 10
-    - name: Copy the engine files to the docker
+        - docker run -dit --name busybox_container busybox sh
+    - name: Commands for the first settings of docker container
       exec_commands:
-        - echo Building the project...
-        - echo Building the project...
-        - echo Building the project...
-    - name: Copy the engine files to the docker
+        - docker attach busybox_container
+        - echo This environment is in the container
+        - echo BUILD_NAME: $(BUILD_NAME)
+        - echo RELEASE_VERSION: $(RELEASE_VERSION)
+        - echo REVISION_ID_FOR_BASELINE: $(REVISION_ID_FOR_BASELINE)
+        - echo REGION_VALUE: $(REGION_VALUE)
+        - ^p^q
+    - name: exec on the host
       exec_commands:
-        - echo Building the project...
-        - echo Building the project...
-        - echo Building the project...
-    - name: Copy the engine files to the docker
-      exec_commands:
-        - echo Building the project...
-        - echo Building the project...
-        - echo Building the project...
+        - echo This environment is in the host.
