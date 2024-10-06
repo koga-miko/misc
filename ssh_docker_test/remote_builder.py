@@ -7,7 +7,7 @@ import yaml
 
 class RemoteBuilder:
     def __init__(self, build_config_yaml):
-        self.set_build_config
+        self.set_build_config(build_config_yaml)
 
     def exec_build(self, build_script_yaml, exec_result_listener):
         self.ssh = paramiko.SSHClient()
@@ -47,4 +47,4 @@ def _send_commands_and_wait_until_done(self, commands, done_reply_message, recv_
 
 if __name__ == '__main__':
     # テスト用
-    rda = RemoteBuilder()
+    rda = RemoteBuilder("./build_config_default.yaml")
