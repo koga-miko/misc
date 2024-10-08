@@ -12,8 +12,8 @@ ssh_info:
   user: yoshi
   pass: yoshi
 region_info:
-  default_value: NA
-  values:
+  default_name: JP-region
+  regions:
     - name: NA-region
       value: NA
     - name: JP-region
