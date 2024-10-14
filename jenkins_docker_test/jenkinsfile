@@ -79,8 +79,8 @@ pipeline {
             steps {
                 script {
                     sh 'echo outside1!!!'
-                    sh 'ls -la' 
-                    def docker_image = docker.image('busybox').Run
+                    sh 'ls -la'
+                    def docker_image = docker.image('busybox')
                     docker_image.inside {
                         sh 'echo inside2!!!'
                         sh 'ls -la'
@@ -101,3 +101,65 @@ pipeline {
 
 
 
+
+pipeline {
+    agent {
+        docker { image 'busybox' }
+    }
+    stages {
+        stage('Docker-stage 1') {
+            steps {
+                sh 'echo Docker-stage 1'
+                sh 'uname -a'
+            }
+        }
+        stage('Docker-host stage 1') {
+            agent {
+                label 'docker-host'
+            }
+            steps {
+                println("Hello!") 
+            }
+        }
+        stage('Docker-stage 2') {
+            steps {
+                sh 'echo Docker-stage 2'
+            }
+        }
+    }
+}
+
+pipeline {
+    agent {
+        docker {
+            image 'my-ubuntu-image' // 予め同名のカスタマイズしたイメージを作成しておくことで指定可能
+        }
+    }
+    stages {
+        stage('Docker-stage 1') {
+            steps {
+                sh 'echo Docker-stage 1'
+                sh 'uname -a'
+                println pwd()
+            }
+        }
+        stage('Docker-host stage 1') {
+            agent { 
+                label 'docker-host'
+            }
+            steps {
+                println("Hello!")
+                // sh 'echo Docker-stage 1' // docker-host（Masterノードに割り振ったラベル名。つまりマスターで動作させている想定）でshコマンド実行すると返ってこないので呼べない（課題）
+                // sh 'uname -a' //同上の課題あり
+                println pwd()
+           }
+        }
+        stage('Docker-stage 2') {
+            steps {
+                sh 'echo Docker-stage 2'
+                sh 'uname -a'
+                println pwd()
+           }
+        }
+    }
+}
