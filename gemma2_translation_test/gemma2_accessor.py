@@ -8,8 +8,10 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 class Gemma2Accessor:
     def __init__(self):
         # Ollamaオブジェクトを初期化
-        self.llm = Ollama(model="gemma2:2b")
-        logging.info("Ollama model initialized with gemma2:2b")
+#        model="gemma2:2b"
+        model="lucas2024/gemma-2-2b-jpn-it:q8_0" # Googleが作成した日本語版のGemma2-2bモデル
+        self.llm = Ollama(model=model)
+        logging.info(f"Ollama model initialized with ${model}")
 
     # 質問に回答するメソッド
     def answer(self, question):
