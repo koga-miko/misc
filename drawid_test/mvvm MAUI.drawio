@@ -1,0 +1,84 @@
+<mxfile host="65bd71144e">
+    <diagram id="mvH3y4j0S80jr1wI1GL9" name="Page-1">
+        <mxGraphModel dx="790" dy="550" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="8" style="edgeStyle=none;html=1;exitX=0.794;exitY=0.869;exitDx=0;exitDy=0;entryX=0.068;entryY=0.195;entryDx=0;entryDy=0;exitPerimeter=0;entryPerimeter=0;dashed=1;flowAnimation=1;" parent="1" source="2" target="14" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="398.0380592228746" y="501.0380592228746" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="21" value="設定・要求" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="8" vertex="1" connectable="0">
+                    <mxGeometry x="0.2273" y="-2" relative="1" as="geometry">
+                        <mxPoint x="-1" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="27" value="Text" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="8" vertex="1" connectable="0">
+                    <mxGeometry x="0.2993" y="-10" relative="1" as="geometry">
+                        <mxPoint x="-37" y="376" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="2" value="View&lt;div&gt;MAUI&lt;/div&gt;&lt;div&gt;XAML&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;points=[[0,0,0,0,0],[0,0.5,0,0,0],[0,1,0,0,0],[0.05,0.32,0,0,0],[0.05,0.71,0,0,0],[0.28,0.05,0,0,0],[0.32,0.96,0,0,0],[0.5,0,0,0,0],[0.53,0.99,0,0,0],[0.7,0.95,0,0,0],[0.72,0.05,0,0,0],[0.95,0.32,0,0,0],[0.95,0.71,0,0,0],[1,0,0,0,0],[1,0.5,0,0,0],[1,1,0,0,0]];" parent="1" vertex="1">
+                    <mxGeometry x="199" y="282" width="130" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" style="edgeStyle=none;html=1;exitX=0.28;exitY=0.05;exitDx=0;exitDy=0;entryX=0.95;entryY=0.71;entryDx=0;entryDy=0;exitPerimeter=0;entryPerimeter=0;dashed=1;flowAnimation=1;" parent="1" source="14" target="2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="379" y="547" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="22" value="データバインディング" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontColor=light-dark(#ff0000, #ededed);" parent="13" vertex="1" connectable="0">
+                    <mxGeometry x="-0.2694" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="10" style="edgeStyle=none;html=1;exitX=1;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0;entryDx=0;entryDy=0;dashed=1;flowAnimation=1;" parent="1" source="9" target="2" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="179" y="262" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="19" value="操作" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="10" vertex="1" connectable="0">
+                    <mxGeometry x="0.1071" y="-2" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="9" value="Actor" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
+                    <mxGeometry x="113" y="170" width="30" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="14" value="ViewModel&lt;div&gt;MAUI&lt;/div&gt;&lt;div&gt;C#&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#ffe6cc;strokeColor=#d79b00;points=[[0,0,0,0,0],[0,0.5,0,0,0],[0,1,0,0,0],[0.05,0.32,0,0,0],[0.05,0.71,0,0,0],[0.28,0.05,0,0,0],[0.32,0.96,0,0,0],[0.5,0,0,0,0],[0.53,0.99,0,0,0],[0.7,0.95,0,0,0],[0.72,0.05,0,0,0],[0.95,0.32,0,0,0],[0.95,0.71,0,0,0],[1,0,0,0,0],[1,0.5,0,0,0],[1,1,0,0,0]];" parent="1" vertex="1">
+                    <mxGeometry x="379" y="482" width="130" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="Model&lt;div&gt;MAUI&lt;/div&gt;&lt;div&gt;C#&lt;/div&gt;" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;points=[[0,0,0,0,0],[0,0.5,0,0,0],[0,1,0,0,0],[0.05,0.32,0,0,0],[0.05,0.71,0,0,0],[0.28,0.05,0,0,0],[0.32,0.96,0,0,0],[0.5,0,0,0,0],[0.53,0.99,0,0,0],[0.7,0.95,0,0,0],[0.72,0.05,0,0,0],[0.95,0.32,0,0,0],[0.95,0.71,0,0,0],[1,0,0,0,0],[1,0.5,0,0,0],[1,1,0,0,0]];" parent="1" vertex="1">
+                    <mxGeometry x="589" y="282" width="130" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" style="edgeStyle=none;html=1;exitX=0.28;exitY=0.05;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.3333333333333333;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;flowAnimation=1;" parent="1" source="2" target="9" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" value="表示" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="18" vertex="1" connectable="0">
+                    <mxGeometry x="-0.1033" y="2" relative="1" as="geometry">
+                        <mxPoint y="-1" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="23" style="edgeStyle=none;html=1;exitX=0.95;exitY=0.32;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.191;entryY=0.843;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;flowAnimation=1;" parent="1" source="14" target="15" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="25" value="設定" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="23" vertex="1" connectable="0">
+                    <mxGeometry x="0.0187" y="-3" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="24" style="edgeStyle=none;html=1;exitX=0.05;exitY=0.71;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.817;entryY=0.162;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;flowAnimation=1;" parent="1" source="15" target="14" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="26" value="取得" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="24" vertex="1" connectable="0">
+                    <mxGeometry x="-0.131" y="1" relative="1" as="geometry">
+                        <mxPoint x="1" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="31" value="MVVM構造の例：MAUI" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="90" width="150" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
