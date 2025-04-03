@@ -1,0 +1,4 @@
+2025-04-04 08:54:56,498 - INFO - Logging is set up.
+2025-04-04 08:54:56,501 - INFO - File a.txt read successfully.
+2025-04-04 08:54:56,503 - INFO - File b.txt read successfully.
+2025-04-04 08:54:56,506 - ERROR - Error writing to Excel file out.xlsx: All arrays must be of the same length
