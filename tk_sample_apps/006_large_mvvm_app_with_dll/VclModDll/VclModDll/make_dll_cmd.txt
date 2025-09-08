@@ -1,0 +1,1 @@
+cl /LD vclmod.c /Fe:vclmod.dll
