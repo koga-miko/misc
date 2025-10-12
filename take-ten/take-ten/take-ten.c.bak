@@ -1,0 +1,269 @@
+﻿// take-ten.c
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<stdbool.h>
+#include<string.h>
+
+// イテレータの種類
+typedef enum {
+    ITER_TYPE_FULL,             // 重複許容
+    ITER_TYPE_COMBI,            // 組み合わせ(アイテム重複あり)
+    ITER_TYPE_UNIQUE,           // 組み合わせ(アイテム重複無し)
+} iter_type_t;
+    
+// 算術演算子(+,-,*,/)の組み合わせを返すイテレータ
+typedef struct {
+    bool alive;
+    bool first;
+    iter_type_t type;
+    char* target_chars;
+    size_t target_chars_len;
+    size_t *out_chars_idxes;
+    size_t out_chars_len;
+} iter_t;
+
+void iter_delete(iter_t* iter) {
+    if (iter != NULL) {
+        if (iter->alive == true) {
+            iter->alive = false;
+            free(iter->out_chars_idxes);
+            free(iter->target_chars);
+            free(iter);
+        }
+        else {
+            printf("[E] iter_delete: iter already meybe deleted, so it didn't free.");
+        }
+    }
+    else {
+        printf("[W] iter_delete: iter is already NULL.");
+    }
+}
+
+// 演算子用イテレータを作成する。引数のバッファは確保する側で用意する。
+// ※target_charsは文字列ではなく1文字単位を格納した配列でありNULL終端は不要（但しNULL終端を含んでいても問題なし）
+// 戻り値：成功(NULL以外)、失敗(NULL)
+iter_t *iter_new(iter_type_t type, const char * target_chars, size_t target_chars_len, size_t out_chars_len) {
+    if (target_chars == NULL) {
+        printf("[E] iter_new: iter_new is NULL\n");
+        return NULL;
+    }
+    iter_t *iter = (iter_t*)malloc(sizeof(iter_t));
+    if (iter == NULL) {
+        printf("[E] iter_new: malloc(iter) is failure. size(%zu)\n", sizeof(iter_t*));
+        return NULL;
+    }
+    size_t target_chars_size = sizeof(char) * target_chars_len;
+    iter->target_chars = (char *)malloc(target_chars_size);
+    if (iter->target_chars == NULL) {
+        printf("[E] iter_new: malloc(iter->target_chars) is failure. size(%zu)\n", target_chars_size);
+        free(iter);
+        return NULL;
+    }
+
+    size_t out_chars_size = sizeof(size_t) * out_chars_len;
+    iter->out_chars_idxes = (size_t *)malloc(out_chars_size);
+    if (iter->out_chars_idxes == NULL) {
+        printf("[E] iter_new: malloc(iter->data) is failure. size(%zu)\n", out_chars_size);
+        free(iter->target_chars);
+        free(iter);
+        return NULL;
+    }
+    iter->alive = true;
+    iter->first = true;
+    iter->type = type;
+    iter->target_chars_len = target_chars_len;
+    memcpy(iter->target_chars, target_chars, target_chars_size);
+    iter->out_chars_len = out_chars_len;
+    if (iter->type == ITER_TYPE_UNIQUE) {
+        size_t tmp_idx = 0;
+        // 子,孫のインデックスは1ずつインクリメントした値を設定
+        for (int i = 0; i < iter->out_chars_len; i++) {
+            iter->out_chars_idxes[i] = tmp_idx;
+            // 桁あふれ発生 ※UNIQUEの場合は領域
+            // (out_chars_len)よりも対象文字一覧のサイズ(out_chars_len)が小さい場合は文字をユニークに割り当てきれないのでNG）
+            if (tmp_idx >= iter->target_chars_len) {
+                printf("[E] iter_new: target_chars_len is less than out_chars_len on ITER_TYPE_UNIQUE case.\n");
+                iter_delete(iter);
+                return NULL;
+            }
+            tmp_idx++;
+        }
+    }
+    else if (iter->type == ITER_TYPE_COMBI) {
+        // 子,孫のインデックスは自分と同じ値を設定
+        for (int i = 0; i < iter->out_chars_len; i++) {
+            iter->out_chars_idxes[i] = 0;
+        }
+    }
+    else {
+        // ゼロ初期化
+        memset(iter->out_chars_idxes, 0, out_chars_size);
+    }
+    return iter;
+}
+
+// ※内部使用かつレイテンシ重視のため引数NULLチェックはしない
+static bool iter_next_r(iter_t* iter, size_t cur_depth, bool *is_carry) {
+    if (cur_depth >= iter->out_chars_len) {
+        printf("[E] iter_next_r: invalid value cur_depth=%zu\n", cur_depth);
+        return false;
+    }
+    bool is_carry_of_child = false;
+    bool is_carry_of_me = false;
+    // 最後の1桁ではなく手前の桁ならまず子供側の桁を取りに行く
+    if (cur_depth < iter->out_chars_len - 1) {
+        if (iter->out_chars_idxes[cur_depth] < iter->target_chars_len) {
+            bool ok = iter_next_r(iter, cur_depth + 1, &is_carry_of_child);
+            if (!ok) {
+                return false;
+            }
+        }
+        else {
+            printf("[E] iter_next_r: invalid value->cur_idxes[%zu]=%zu.\n", cur_depth, iter->out_chars_idxes[cur_depth]);
+            return false;
+        }
+    }
+    // 最後の1桁か、それより手前の桁なら子供側の桁があふれたとき
+    if ((cur_depth == iter->out_chars_len - 1) || is_carry_of_child) {
+        if (iter->out_chars_idxes[cur_depth] < iter->target_chars_len - 1) {
+            iter->out_chars_idxes[cur_depth]++;
+            if (is_carry_of_child) {
+                if (iter->type == ITER_TYPE_UNIQUE) {
+                    // 子,孫のインデックスは自分の値を1ずつインクリメントした値を設定
+                    size_t tmp_idx = iter->out_chars_idxes[cur_depth] + 1;
+                    for (size_t i = cur_depth + 1; i < iter->out_chars_len; i++) {
+                        // 桁あふれ発生
+                        if (tmp_idx >= iter->target_chars_len) {
+                            is_carry_of_me = true;
+                        }
+                        iter->out_chars_idxes[i] = tmp_idx;
+                        tmp_idx++;
+                    }
+                }
+                else if (iter->type == ITER_TYPE_COMBI) {
+                    // 子,孫のインデックスは自分と同じ値を設定
+                    size_t tmp_idx = iter->out_chars_idxes[cur_depth];
+                    for (size_t i = cur_depth + 1; i < iter->out_chars_len; i++) {
+                        iter->out_chars_idxes[i] = tmp_idx;
+                    }
+                }
+                else {
+                    // 何もする必要無し(デフォルトでゼロ初期化されるため）
+                }
+            }
+        }
+        else {
+            is_carry_of_me = true;
+        }
+        if (is_carry_of_me) {
+            if (is_carry != NULL) {
+                iter->out_chars_idxes[cur_depth] = 0;
+                *is_carry = true;
+            }
+            else {
+                return false;
+            }
+        }
+
+    }
+    return true;
+}
+
+// 演算子用イテレータから次のアイテムを取得する
+// 次のアイテムがあればcharsに格納してtrueを返し無ければfalseを返す
+bool iter_next(iter_t *iter, char *out_chars, size_t out_chars_len){
+    if (iter == NULL) {
+        printf("[E] iter_delete: iter is NULL\n");
+        return false;
+    }
+    if (!iter->alive) {
+        printf("[E] iter_delete: iter already meybe deleted, so it didn't work\n");
+        return false;
+    }
+    if (out_chars == NULL) {
+        printf("[E] iter_delete: out_chars is NULL\n");
+        return false;
+    }
+    if (out_chars_len < iter->out_chars_len) {
+        printf("[E] iter_next: invalid size out_chars_len=%zu. iter->out_chars_len=%zu\n", out_chars_len, iter->out_chars_len);
+        return false;
+    }
+    bool is_ok = true;
+    if (iter->first) {
+        iter->first = false;
+        if (iter->out_chars_len > 0) {
+            is_ok = true;
+        }
+    }
+    else {
+        is_ok = iter_next_r(iter, 0, NULL);
+    }
+    if (is_ok) {
+        int i = 0;
+        for (; i < iter->out_chars_len; i++) {
+            out_chars[i] = iter->target_chars[iter->out_chars_idxes[i]];
+        }
+    }
+    return is_ok;
+}
+
+#define DIGIT_LEN (4)                       // 数値の個数
+#define EXPR_LEN  (DIGIT_LEN - 1)           // 数値の間に含まれる演算子の数
+#define TOTAL_LEN (EXPR_LEN + DIGIT_LEN)     // トータルのNULL終端含まないサイズ
+#define TOTAL_BUF_SIZE (TOTAL_LEN + 1)      // トータルのNULL終端含むバッファサイズ
+
+// takeNを計算する。
+// ・digits_lenに数値(0-9)の配列とdigits_lenにその桁数が入る。
+// 　数値Nになるような数式を探し、見つかったらout_strbufに数式文字列を格納する。
+// ・戻り値: 0(正常終了でexpected_val), -1(Error)
+int execute_take_N(char *digits, size_t digits_len, int N) {
+    const char exprs[] = { '+', '-', '*', '/' };
+    iter_t* ope_iter = iter_new(ITER_TYPE_UNIQUE, exprs, sizeof(exprs), DIGIT_LEN - 1);
+    if (ope_iter == NULL) {
+        printf("[E] execute_take_N: ope_iter == NULL.\n");
+        return 0;
+    }
+    int cnt = 0;
+    char target_chars[DIGIT_LEN]; // 数値より1文字少ない(DIGIT_LEN - 1)サイズ分が演算子文字列の分だが、そこにNULL終端分+1して、容量はDIGIT_LENになる。
+    memset(target_chars, 0, sizeof(target_chars));
+    while (iter_next(ope_iter, target_chars, EXPR_LEN)) {
+        char total_chars[EXPR_LEN + DIGIT_LEN];
+        memcpy(&total_chars[0], target_chars, EXPR_LEN);
+        memcpy(&total_chars[EXPR_LEN], "1234", DIGIT_LEN);
+        char out_chars[TOTAL_BUF_SIZE];
+        memset(out_chars, 0, TOTAL_BUF_SIZE);
+        iter_t* expr_iter = iter_new(ITER_TYPE_UNIQUE, total_chars, TOTAL_LEN, TOTAL_LEN);
+        if (expr_iter == NULL) {
+            printf("[E] execute_take_N: expr_iter == NULL.\n");
+            iter_delete(ope_iter);
+            return 0;
+        }
+        while (iter_next(expr_iter, out_chars, TOTAL_BUF_SIZE)) {
+            printf("[%03d] chars[%s]\n", cnt, out_chars);
+            cnt++;
+        }
+        iter_delete(expr_iter);
+    }
+    iter_delete(ope_iter);
+
+    return 0;
+
+
+}
+
+#define LEN_FGETS_BUF (100)
+
+int main() {    
+    char nums[DIGIT_LEN];
+    char input_str[LEN_FGETS_BUF];
+    printf("4つの数値を入力してください:");
+    for (int i = 0; i < DIGIT_LEN; i++) {
+        if (fgets(input_str, LEN_FGETS_BUF, stdin) != NULL) {
+            input_str[strcspn(input_str, "\n")] = '\0';
+            printf("入力された数値: %s\n", input_str);
+            nums[i] = input_str[0];
+        }
+    }
+    execute_take_N("1234", 4, 4);
+}
