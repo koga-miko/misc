@@ -3,280 +3,282 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
-#define DEFAULT_PORT 8888
+// モードの定義
+typedef enum {
+    MODE_SERVER,
+    MODE_CLIENT
+} GameMode;
 
-// クライアント側のゲームループ
-void run_client(const char* host, int port) {
+// ゲーム情報
+typedef struct {
     Game game;
-    init_game(&game);
+    socket_t sock;
+    GameMode mode;
+    Player my_player;
+} GameContext;
 
-    int sock = connect_to_server(host, port);
-    if (sock < 0) {
-        printf("サーバーへの接続に失敗しました。\n");
-        return;
+// ゲームの初期化
+void init_game(GameContext *ctx) {
+    init_board(&ctx->game.board);
+    ctx->game.current_player = PLAYER_BLACK;  // 黒（クライアント）が先手
+    ctx->game.game_over = false;
+}
+
+// プレイヤーの表示
+const char* player_name(Player player) {
+    return (player == PLAYER_BLACK) ? "黒(B)" : "白(W)";
+}
+
+// 自分のターン処理
+bool handle_my_turn(GameContext *ctx) {
+    printf("\n=== あなたのターン (%s) ===\n", player_name(ctx->my_player));
+
+    // 有効な手があるかチェック
+    if (!has_valid_moves(&ctx->game.board, ctx->my_player)) {
+        printf("有効な手がありません。パスします。\n");
+        return false;
     }
 
-    printf("\nクライアントモード（黒石）でゲーム開始\n");
-    display_board(&game.board);
+    // 有効な手を表示
+    printf("有効な手: ");
+    for (int i = 0; i < TOTAL_CELLS; i++) {
+        if (is_valid_move(&ctx->game.board, i, ctx->my_player)) {
+            int row, col;
+            coordinates_from_position(i, &row, &col);
+            printf("%c%d ", 'a' + col, row + 1);
+        }
+    }
+    printf("\n");
 
-    int64_t buffer[64];
-    bool game_over = false;
-
-    while (!game_over) {
-        // クライアントのターン（黒）
-        if (has_valid_moves(&game.board, PLAYER_BLACK)) {
-            printf("あなたのターン（黒石）\n");
-            printf("有効な手を入力してください（例: d3）。終了するには 'quit' と入力してください。\n");
-
-            bool valid_input = false;
-            while (!valid_input) {
-                char input[10];
-                printf("> ");
-                if (scanf("%s", input) != 1) {
-                    printf("入力エラー\n");
-                    continue;
-                }
-
-                if (strcmp(input, "quit") == 0) {
-                    printf("ゲームを終了します。\n");
-                    close_connection(sock);
-                    return;
-                }
-
-                Position pos;
-                if (!parse_position(input, &pos)) {
-                    printf("無効な入力です。a1-h8の形式で入力してください。\n");
-                    continue;
-                }
-
-                if (!is_valid_move(&game.board, pos, PLAYER_BLACK)) {
-                    printf("そこには置けません。別の場所を指定してください。\n");
-                    continue;
-                }
-
-                place_stone(&game.board, pos, PLAYER_BLACK);
-                display_board(&game.board);
-
-                // ボードをサーバーに送信
-                serialize_board(&game.board, buffer);
-                if (!send_board(sock, buffer)) {
-                    printf("送信エラー\n");
-                    close_connection(sock);
-                    return;
-                }
-
-                valid_input = true;
-            }
-        } else {
-            printf("黒石：有効な手がありません。パスします。\n");
-
-            // パスの場合も現在のボード状態を送信
-            serialize_board(&game.board, buffer);
-            if (!send_board(sock, buffer)) {
-                printf("送信エラー\n");
-                close_connection(sock);
-                return;
-            }
+    // 入力を受け付ける
+    while (true) {
+        printf("石を置く位置を入力してください (例: a1): ");
+        char input[10];
+        if (fgets(input, sizeof(input), stdin) == NULL) {
+            continue;
         }
 
-        // サーバーのターンを待つ（白）
-        if (has_valid_moves(&game.board, PLAYER_WHITE)) {
-            printf("相手のターンを待っています...\n");
+        // 改行を削除
+        input[strcspn(input, "\n")] = 0;
 
-            if (!receive_board(sock, buffer)) {
-                printf("受信エラー\n");
-                close_connection(sock);
-                return;
-            }
+        int position;
+        if (!parse_input(input, &position)) {
+            printf("無効な入力です。\n");
+            continue;
+        }
 
-            deserialize_board(&game.board, buffer);
-            printf("\n相手が石を置きました。\n");
-            display_board(&game.board);
+        if (!is_valid_move(&ctx->game.board, position, ctx->my_player)) {
+            printf("そこには置けません。\n");
+            continue;
+        }
+
+        // 石を置く
+        place_stone(&ctx->game.board, position, ctx->my_player);
+        printf("石を置きました: %s\n", input);
+
+        // ボードを送信
+        if (!send_board(ctx->sock, &ctx->game.board)) {
+            printf("送信に失敗しました。\n");
+            return false;
+        }
+
+        return true;
+    }
+}
+
+// 相手のターン処理
+bool handle_opponent_turn(GameContext *ctx) {
+    Player opponent = get_opponent(ctx->my_player);
+    printf("\n=== 相手のターン (%s) ===\n", player_name(opponent));
+    printf("相手の手を待っています...\n");
+
+    // 相手が有効な手を持っているかチェック
+    if (!has_valid_moves(&ctx->game.board, opponent)) {
+        printf("相手に有効な手がありません。パスされました。\n");
+        return false;
+    }
+
+    // ボードを受信
+    if (!receive_board(ctx->sock, &ctx->game.board)) {
+        printf("受信に失敗しました。\n");
+        return false;
+    }
+
+    printf("相手が石を置きました。\n");
+    return true;
+}
+
+// ゲーム終了判定と結果表示
+void check_game_end(GameContext *ctx) {
+    bool my_has_moves = has_valid_moves(&ctx->game.board, ctx->my_player);
+    bool opponent_has_moves = has_valid_moves(&ctx->game.board, get_opponent(ctx->my_player));
+
+    if (!my_has_moves && !opponent_has_moves) {
+        ctx->game.game_over = true;
+
+        printf("\n=== ゲーム終了 ===\n");
+
+        int black_count, white_count;
+        count_stones(&ctx->game.board, &black_count, &white_count);
+
+        printf("黒(B): %d\n", black_count);
+        printf("白(W): %d\n", white_count);
+
+        Player winner = get_winner(&ctx->game.board);
+        if (winner == EMPTY) {
+            printf("引き分けです！\n");
+        } else if (winner == ctx->my_player) {
+            printf("あなたの勝ちです！\n");
         } else {
-            printf("白石：有効な手がありません。パスします。\n");
+            printf("あなたの負けです。\n");
+        }
+    }
+}
+
+// ゲームループ
+void game_loop(GameContext *ctx) {
+    init_game(ctx);
+
+    while (!ctx->game.game_over) {
+        display_board(&ctx->game.board);
+
+        int black_count, white_count;
+        count_stones(&ctx->game.board, &black_count, &white_count);
+        printf("黒(B): %d  白(W): %d\n", black_count, white_count);
+
+        // 自分のターンか相手のターンか
+        if (ctx->game.current_player == ctx->my_player) {
+            if (handle_my_turn(ctx)) {
+                ctx->game.current_player = get_opponent(ctx->my_player);
+            } else {
+                // パスの場合も相手にターンを渡す
+                ctx->game.current_player = get_opponent(ctx->my_player);
+            }
+        } else {
+            if (handle_opponent_turn(ctx)) {
+                ctx->game.current_player = ctx->my_player;
+            } else {
+                // 相手がパスした場合
+                ctx->game.current_player = ctx->my_player;
+            }
         }
 
         // ゲーム終了判定
-        if (!has_valid_moves(&game.board, PLAYER_BLACK) && !has_valid_moves(&game.board, PLAYER_WHITE)) {
-            game_over = true;
-        }
+        check_game_end(ctx);
     }
 
-    // 結果表示
-    int black_count, white_count;
-    count_stones(&game.board, &black_count, &white_count);
-    printf("\n=== ゲーム終了 ===\n");
-    printf("黒石: %d\n", black_count);
-    printf("白石: %d\n", white_count);
-
-    if (black_count > white_count) {
-        printf("あなたの勝ちです！\n");
-    } else if (white_count > black_count) {
-        printf("相手の勝ちです。\n");
-    } else {
-        printf("引き分けです。\n");
-    }
-
-    close_connection(sock);
+    display_board(&ctx->game.board);
 }
 
-// サーバー側のゲームループ
+// サーバーモード
 void run_server(int port) {
-    Game game;
-    init_game(&game);
+    GameContext ctx;
+    ctx.mode = MODE_SERVER;
+    ctx.my_player = PLAYER_WHITE;  // サーバーは白
 
-    int sock = start_server(port);
-    if (sock < 0) {
+    printf("=== サーバーモード（白） ===\n");
+
+    ctx.sock = start_server(port);
+    if (ctx.sock == INVALID_SOCKET_VALUE) {
         printf("サーバーの起動に失敗しました。\n");
         return;
     }
 
-    printf("\nサーバーモード（白石）でゲーム開始\n");
-    display_board(&game.board);
+    game_loop(&ctx);
 
-    int64_t buffer[64];
-    bool game_over = false;
-
-    while (!game_over) {
-        // クライアントのターンを待つ（黒）
-        if (has_valid_moves(&game.board, PLAYER_BLACK)) {
-            printf("相手のターンを待っています...\n");
-
-            if (!receive_board(sock, buffer)) {
-                printf("受信エラー\n");
-                close_connection(sock);
-                return;
-            }
-
-            deserialize_board(&game.board, buffer);
-            printf("\n相手が石を置きました。\n");
-            display_board(&game.board);
-        } else {
-            printf("黒石：有効な手がありません。パスします。\n");
-        }
-
-        // サーバーのターン（白）
-        if (has_valid_moves(&game.board, PLAYER_WHITE)) {
-            printf("あなたのターン（白石）\n");
-            printf("有効な手を入力してください（例: d3）。終了するには 'quit' と入力してください。\n");
-
-            bool valid_input = false;
-            while (!valid_input) {
-                char input[10];
-                printf("> ");
-                if (scanf("%s", input) != 1) {
-                    printf("入力エラー\n");
-                    continue;
-                }
-
-                if (strcmp(input, "quit") == 0) {
-                    printf("ゲームを終了します。\n");
-                    close_connection(sock);
-                    return;
-                }
-
-                Position pos;
-                if (!parse_position(input, &pos)) {
-                    printf("無効な入力です。a1-h8の形式で入力してください。\n");
-                    continue;
-                }
-
-                if (!is_valid_move(&game.board, pos, PLAYER_WHITE)) {
-                    printf("そこには置けません。別の場所を指定してください。\n");
-                    continue;
-                }
-
-                place_stone(&game.board, pos, PLAYER_WHITE);
-                display_board(&game.board);
-
-                // ボードをクライアントに送信
-                serialize_board(&game.board, buffer);
-                if (!send_board(sock, buffer)) {
-                    printf("送信エラー\n");
-                    close_connection(sock);
-                    return;
-                }
-
-                valid_input = true;
-            }
-        } else {
-            printf("白石：有効な手がありません。パスします。\n");
-
-            // パスの場合も現在のボード状態を送信
-            serialize_board(&game.board, buffer);
-            if (!send_board(sock, buffer)) {
-                printf("送信エラー\n");
-                close_connection(sock);
-                return;
-            }
-        }
-
-        // ゲーム終了判定
-        if (!has_valid_moves(&game.board, PLAYER_BLACK) && !has_valid_moves(&game.board, PLAYER_WHITE)) {
-            game_over = true;
-        }
-    }
-
-    // 結果表示
-    int black_count, white_count;
-    count_stones(&game.board, &black_count, &white_count);
-    printf("\n=== ゲーム終了 ===\n");
-    printf("黒石: %d\n", black_count);
-    printf("白石: %d\n", white_count);
-
-    if (white_count > black_count) {
-        printf("あなたの勝ちです！\n");
-    } else if (black_count > white_count) {
-        printf("相手の勝ちです。\n");
-    } else {
-        printf("引き分けです。\n");
-    }
-
-    close_connection(sock);
+    close_socket(ctx.sock);
 }
 
-int main(int argc, char* argv[]) {
-    printf("=== Simple Reversi ===\n");
-    printf("ネットワーク対戦型オセロゲーム\n\n");
+// クライアントモード
+void run_client(const char *host, int port) {
+    GameContext ctx;
+    ctx.mode = MODE_CLIENT;
+    ctx.my_player = PLAYER_BLACK;  // クライアントは黒
 
-    if (argc < 2) {
-        printf("使用方法:\n");
-        printf("  サーバーとして起動: %s server [port]\n", argv[0]);
-        printf("  クライアントとして起動: %s client <host> [port]\n", argv[0]);
-        printf("\n例:\n");
-        printf("  サーバー: %s server 8888\n", argv[0]);
-        printf("  クライアント: %s client 127.0.0.1 8888\n", argv[0]);
+    printf("=== クライアントモード（黒） ===\n");
+
+    ctx.sock = connect_to_server(host, port);
+    if (ctx.sock == INVALID_SOCKET_VALUE) {
+        printf("サーバーへの接続に失敗しました。\n");
+        return;
+    }
+
+    game_loop(&ctx);
+
+    close_socket(ctx.sock);
+}
+
+// メイン関数
+int main(int argc, char *argv[]) {
+    printf("=================================\n");
+    printf("  Simple Reversi (Network Game)  \n");
+    printf("=================================\n\n");
+
+    // ネットワーク初期化
+    if (!network_init()) {
+        printf("ネットワークの初期化に失敗しました。\n");
         return 1;
     }
 
-    network_init();
+    // モード選択
+    printf("モードを選択してください:\n");
+    printf("1. サーバー（白・後手）\n");
+    printf("2. クライアント（黒・先手）\n");
+    printf("選択 (1 or 2): ");
 
-    if (strcmp(argv[1], "server") == 0) {
-        int port = DEFAULT_PORT;
-        if (argc >= 3) {
-            port = atoi(argv[2]);
-        }
-        run_server(port);
-    } else if (strcmp(argv[1], "client") == 0) {
-        if (argc < 3) {
-            printf("クライアントモードにはホスト名が必要です。\n");
-            printf("使用方法: %s client <host> [port]\n", argv[0]);
+    char mode_input[10];
+    if (fgets(mode_input, sizeof(mode_input), stdin) == NULL) {
+        network_cleanup();
+        return 1;
+    }
+
+    int mode = atoi(mode_input);
+
+    if (mode == 1) {
+        // サーバーモード
+        printf("ポート番号を入力してください（デフォルト: %d）: ", DEFAULT_PORT);
+        char port_input[10];
+        if (fgets(port_input, sizeof(port_input), stdin) == NULL) {
+            network_cleanup();
             return 1;
         }
 
-        const char* host = argv[2];
-        int port = DEFAULT_PORT;
-        if (argc >= 4) {
-            port = atoi(argv[3]);
+        int port = atoi(port_input);
+        if (port == 0) {
+            port = DEFAULT_PORT;
         }
+
+        run_server(port);
+
+    } else if (mode == 2) {
+        // クライアントモード
+        printf("サーバーのIPアドレスを入力してください: ");
+        char host[50];
+        if (fgets(host, sizeof(host), stdin) == NULL) {
+            network_cleanup();
+            return 1;
+        }
+        host[strcspn(host, "\n")] = 0;
+
+        printf("ポート番号を入力してください（デフォルト: %d）: ", DEFAULT_PORT);
+        char port_input[10];
+        if (fgets(port_input, sizeof(port_input), stdin) == NULL) {
+            network_cleanup();
+            return 1;
+        }
+
+        int port = atoi(port_input);
+        if (port == 0) {
+            port = DEFAULT_PORT;
+        }
+
         run_client(host, port);
+
     } else {
-        printf("無効なモード: %s\n", argv[1]);
-        printf("'server' または 'client' を指定してください。\n");
-        return 1;
+        printf("無効なモードです。\n");
     }
 
+    network_cleanup();
     return 0;
 }

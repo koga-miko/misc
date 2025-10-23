@@ -1,21 +1,30 @@
-# Object files
+# 実行ファイル
+*.exe
+*.out
+reversi
+
+# オブジェクトファイル
 *.o
 *.obj
 
-# Executables
-reversi
-*.exe
-*.out
+# デバッグファイル
+*.pdb
+*.ilk
 
-# Debug files
-*.dSYM/
+# Visual Studio
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
 
-# IDE files
-.vscode/
-.idea/
+# エディタ
 *.swp
 *.swo
 *~
+.vscode/
+.idea/
 
-# macOS
+# OS固有
 .DS_Store
+Thumbs.db

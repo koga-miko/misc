@@ -3,38 +3,34 @@
 #include <string.h>
 #include <ctype.h>
 
-// ゲーム初期化
-void init_game(Game* game) {
-    // ボードを空にする
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            game->board.cells[i][j] = EMPTY;
-        }
-    }
+// 8方向のベクトル
+static const Direction directions[8] = {
+    {-1, -1}, {-1, 0}, {-1, 1},
+    {0, -1},           {0, 1},
+    {1, -1},  {1, 0},  {1, 1}
+};
 
-    // 初期配置
-    game->board.cells[3][3] = BLACK;
-    game->board.cells[3][4] = WHITE;
-    game->board.cells[4][3] = WHITE;
-    game->board.cells[4][4] = BLACK;
+// ボードの初期化
+void init_board(Board *board) {
+    memset(board->cells, 0, sizeof(board->cells));
 
-    game->current_player = PLAYER_BLACK;
-    game->black_count = 2;
-    game->white_count = 2;
+    // 初期配置（中央の4つの石）
+    board->cells[position_from_coordinates(3, 3)] = WHITE;
+    board->cells[position_from_coordinates(3, 4)] = BLACK;
+    board->cells[position_from_coordinates(4, 3)] = BLACK;
+    board->cells[position_from_coordinates(4, 4)] = WHITE;
 }
 
-// ボード表示
-void display_board(const Board* board) {
-    printf("\n  ");
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        printf("%c ", 'a' + i);
-    }
-    printf("\n");
+// ボードの表示
+void display_board(const Board *board) {
+    printf("\n  a b c d e f g h\n");
+    for (int row = 0; row < BOARD_SIZE; row++) {
+        printf("%d ", row + 1);
+        for (int col = 0; col < BOARD_SIZE; col++) {
+            int pos = position_from_coordinates(row, col);
+            Cell cell = (Cell)board->cells[pos];
 
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        printf("%d ", i + 1);
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            switch (board->cells[i][j]) {
+            switch (cell) {
                 case EMPTY:
                     printf(". ");
                     break;
@@ -51,57 +47,65 @@ void display_board(const Board* board) {
     printf("\n");
 }
 
-// 8方向のオフセット
-static const int directions[8][2] = {
-    {-1, -1}, {-1, 0}, {-1, 1},  // 上左、上、上右
-    {0, -1},           {0, 1},    // 左、右
-    {1, -1},  {1, 0},  {1, 1}     // 下左、下、下右
-};
+// 座標からポジションへの変換
+int position_from_coordinates(int row, int col) {
+    return row * BOARD_SIZE + col;
+}
 
-// 指定方向でひっくり返せる石の数をカウント
-static int count_flips_in_direction(const Board* board, Position pos, Player player, int dr, int dc) {
-    int count = 0;
-    int r = pos.row + dr;
-    int c = pos.col + dc;
-    Player opponent = (player == PLAYER_BLACK) ? PLAYER_WHITE : PLAYER_BLACK;
+// ポジションから座標への変換
+void coordinates_from_position(int position, int *row, int *col) {
+    *row = position / BOARD_SIZE;
+    *col = position % BOARD_SIZE;
+}
 
-    // 隣接セルが相手の石でない場合は0
-    if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE ||
-        board->cells[r][c] != opponent) {
-        return 0;
-    }
+// 相手プレイヤーの取得
+Player get_opponent(Player player) {
+    return (player == PLAYER_BLACK) ? PLAYER_WHITE : PLAYER_BLACK;
+}
 
-    // 相手の石が続く間カウント
+// 指定した方向に石をひっくり返せるかチェック
+static int count_flips_in_direction(const Board *board, int position, Player player, const Direction *dir) {
+    int row, col;
+    coordinates_from_position(position, &row, &col);
+
+    Player opponent = get_opponent(player);
+    int flip_count = 0;
+    int r = row + dir->dy;
+    int c = col + dir->dx;
+
+    // 隣接するセルが相手の石であることを確認
     while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-        if (board->cells[r][c] == opponent) {
-            count++;
-            r += dr;
-            c += dc;
-        } else if (board->cells[r][c] == player) {
-            return count;  // 自分の石で挟めた
-        } else {
-            return 0;  // 空きマスがあった
+        int pos = position_from_coordinates(r, c);
+        Cell cell = (Cell)board->cells[pos];
+
+        if (cell == EMPTY) {
+            return 0;  // 空きマスがあったら無効
+        } else if (cell == opponent) {
+            flip_count++;
+            r += dir->dy;
+            c += dir->dx;
+        } else if (cell == player) {
+            return flip_count;  // 自分の石で挟めた
         }
     }
 
     return 0;  // ボード外に出た
 }
 
-// 有効手判定
-bool is_valid_move(const Board* board, Position pos, Player player) {
-    // 範囲チェック
-    if (pos.row < 0 || pos.row >= BOARD_SIZE || pos.col < 0 || pos.col >= BOARD_SIZE) {
+// 有効な手かどうかチェック
+bool is_valid_move(const Board *board, int position, Player player) {
+    if (position < 0 || position >= TOTAL_CELLS) {
         return false;
     }
 
-    // 既に石がある場合は無効
-    if (board->cells[pos.row][pos.col] != EMPTY) {
+    // すでに石が置かれている
+    if (board->cells[position] != EMPTY) {
         return false;
     }
 
-    // 8方向のいずれかでひっくり返せるかチェック
+    // 8方向のいずれかで石をひっくり返せるかチェック
     for (int i = 0; i < 8; i++) {
-        if (count_flips_in_direction(board, pos, player, directions[i][0], directions[i][1]) > 0) {
+        if (count_flips_in_direction(board, position, player, &directions[i]) > 0) {
             return true;
         }
     }
@@ -109,79 +113,81 @@ bool is_valid_move(const Board* board, Position pos, Player player) {
     return false;
 }
 
-// 指定方向の石をひっくり返す（カスタマイズ可能な関数）
-static void flip_in_direction(Board* board, Position pos, Player player, int dr, int dc, int count) {
-    int r = pos.row + dr;
-    int c = pos.col + dc;
+// 石をひっくり返す処理
+void flip_stones(Board *board, int position, Player player) {
+    int row, col;
+    coordinates_from_position(position, &row, &col);
 
-    for (int i = 0; i < count; i++) {
-        board->cells[r][c] = player;
-        r += dr;
-        c += dc;
-    }
-}
-
-// ひっくり返す処理（カスタマイズ可能）
-int flip_stones(Board* board, Position pos, Player player) {
-    int total_flipped = 0;
-
+    // 8方向について石をひっくり返す
     for (int i = 0; i < 8; i++) {
-        int count = count_flips_in_direction(board, pos, player, directions[i][0], directions[i][1]);
-        if (count > 0) {
-            flip_in_direction(board, pos, player, directions[i][0], directions[i][1], count);
-            total_flipped += count;
+        int flip_count = count_flips_in_direction(board, position, player, &directions[i]);
+
+        if (flip_count > 0) {
+            int r = row + directions[i].dy;
+            int c = col + directions[i].dx;
+
+            for (int j = 0; j < flip_count; j++) {
+                int pos = position_from_coordinates(r, c);
+                board->cells[pos] = player;
+                r += directions[i].dy;
+                c += directions[i].dx;
+            }
         }
     }
-
-    return total_flipped;
 }
 
 // 石を置く
-bool place_stone(Board* board, Position pos, Player player) {
-    if (!is_valid_move(board, pos, player)) {
+bool place_stone(Board *board, int position, Player player) {
+    if (!is_valid_move(board, position, player)) {
         return false;
     }
 
-    // 石を置く
-    board->cells[pos.row][pos.col] = player;
-
-    // ひっくり返す
-    flip_stones(board, pos, player);
+    board->cells[position] = player;
+    flip_stones(board, position, player);
 
     return true;
 }
 
-// 有効な手があるかチェック
-bool has_valid_moves(const Board* board, Player player) {
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            Position pos = {i, j};
-            if (is_valid_move(board, pos, player)) {
-                return true;
-            }
+// プレイヤーに有効な手があるかチェック
+bool has_valid_moves(const Board *board, Player player) {
+    for (int i = 0; i < TOTAL_CELLS; i++) {
+        if (is_valid_move(board, i, player)) {
+            return true;
         }
     }
     return false;
 }
 
 // 石の数をカウント
-void count_stones(const Board* board, int* black_count, int* white_count) {
+void count_stones(const Board *board, int *black_count, int *white_count) {
     *black_count = 0;
     *white_count = 0;
 
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            if (board->cells[i][j] == BLACK) {
-                (*black_count)++;
-            } else if (board->cells[i][j] == WHITE) {
-                (*white_count)++;
-            }
+    for (int i = 0; i < TOTAL_CELLS; i++) {
+        if (board->cells[i] == BLACK) {
+            (*black_count)++;
+        } else if (board->cells[i] == WHITE) {
+            (*white_count)++;
         }
     }
 }
 
-// 座標文字列をPositionに変換 (例: "a1" -> {0, 0})
-bool parse_position(const char* input, Position* pos) {
+// 勝者を判定
+Player get_winner(const Board *board) {
+    int black_count, white_count;
+    count_stones(board, &black_count, &white_count);
+
+    if (black_count > white_count) {
+        return PLAYER_BLACK;
+    } else if (white_count > black_count) {
+        return PLAYER_WHITE;
+    } else {
+        return EMPTY;  // 引き分け
+    }
+}
+
+// 入力をパース（例: "a1" -> position）
+bool parse_input(const char *input, int *position) {
     if (strlen(input) < 2) {
         return false;
     }
@@ -197,28 +203,14 @@ bool parse_position(const char* input, Position* pos) {
         return false;
     }
 
-    pos->col = col_char - 'a';
-    pos->row = row_char - '1';
+    int col = col_char - 'a';
+    int row = row_char - '1';
 
+    *position = position_from_coordinates(row, col);
     return true;
 }
 
-// ボードをバッファにシリアライズ（送信用）
-void serialize_board(const Board* board, int64_t* buffer) {
-    int index = 0;
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            buffer[index++] = board->cells[i][j];
-        }
-    }
-}
-
-// バッファからボードをデシリアライズ（受信用）
-void deserialize_board(Board* board, const int64_t* buffer) {
-    int index = 0;
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        for (int j = 0; j < BOARD_SIZE; j++) {
-            board->cells[i][j] = buffer[index++];
-        }
-    }
+// ボードをコピー
+void copy_board(const Board *src, Board *dst) {
+    memcpy(dst->cells, src->cells, sizeof(src->cells));
 }

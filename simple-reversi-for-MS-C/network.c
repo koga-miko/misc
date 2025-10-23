@@ -1,144 +1,158 @@
 #include "network.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
-#define BUFFER_SIZE 512
-
-// ネットワーク初期化（現在は何もしない）
-int network_init(void) {
-    return 0;
+// ネットワーク初期化（Windows用）
+bool network_init(void) {
+#ifdef _WIN32
+    WSADATA wsa_data;
+    int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+    if (result != 0) {
+        printf("WSAStartup failed: %d\n", result);
+        return false;
+    }
+#endif
+    return true;
 }
 
-// サーバーとして起動
-int start_server(int port) {
-    int server_fd, client_fd;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
-    int opt = 1;
+// ネットワーク終了処理
+void network_cleanup(void) {
+#ifdef _WIN32
+    WSACleanup();
+#endif
+}
+
+// サーバーとして起動（接続待ち）
+socket_t start_server(int port) {
+    socket_t listen_sock, client_sock;
+    struct sockaddr_in server_addr, client_addr;
+    int addr_len = sizeof(client_addr);
 
     // ソケット作成
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
-        return -1;
+    listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (listen_sock == INVALID_SOCKET_VALUE) {
+        printf("ソケット作成に失敗しました\n");
+        return INVALID_SOCKET_VALUE;
     }
 
-    // ソケットオプション設定（アドレス再利用）
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        perror("setsockopt");
-        close(server_fd);
-        return -1;
-    }
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
+    // アドレス設定
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(port);
 
     // バインド
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("bind failed");
-        close(server_fd);
-        return -1;
+    if (bind(listen_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR_VALUE) {
+        printf("バインドに失敗しました\n");
+        closesocket(listen_sock);
+        return INVALID_SOCKET_VALUE;
     }
 
     // リッスン
-    if (listen(server_fd, 1) < 0) {
-        perror("listen");
-        close(server_fd);
-        return -1;
+    if (listen(listen_sock, 1) == SOCKET_ERROR_VALUE) {
+        printf("リッスンに失敗しました\n");
+        closesocket(listen_sock);
+        return INVALID_SOCKET_VALUE;
     }
 
-    printf("サーバー起動。ポート %d で接続を待っています...\n", port);
+    printf("ポート %d で接続を待っています...\n", port);
 
-    // 接続を受け入れる
-    if ((client_fd = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("accept");
-        close(server_fd);
-        return -1;
+    // 接続を受け付ける
+    client_sock = accept(listen_sock, (struct sockaddr*)&client_addr, &addr_len);
+    if (client_sock == INVALID_SOCKET_VALUE) {
+        printf("接続受付に失敗しました\n");
+        closesocket(listen_sock);
+        return INVALID_SOCKET_VALUE;
     }
 
-    printf("クライアントが接続しました。\n");
+    printf("クライアントが接続しました\n");
 
-    // サーバーソケットをクローズ（クライアントソケットのみ必要）
-    close(server_fd);
+    // リッスンソケットを閉じる
+    closesocket(listen_sock);
 
-    return client_fd;
+    return client_sock;
 }
 
 // クライアントとして接続
-int connect_to_server(const char* host, int port) {
-    int sock = 0;
-    struct sockaddr_in serv_addr;
+socket_t connect_to_server(const char *host, int port) {
+    socket_t sock;
+    struct sockaddr_in server_addr;
 
     // ソケット作成
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("ソケット作成エラー\n");
-        return -1;
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET_VALUE) {
+        printf("ソケット作成に失敗しました\n");
+        return INVALID_SOCKET_VALUE;
     }
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
+    // サーバーアドレス設定
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
 
-    // アドレス変換
-    if (inet_pton(AF_INET, host, &serv_addr.sin_addr) <= 0) {
-        printf("無効なアドレス / アドレスがサポートされていません\n");
-        close(sock);
-        return -1;
+    // IPアドレス変換
+    if (inet_pton(AF_INET, host, &server_addr.sin_addr) <= 0) {
+        printf("無効なアドレスです\n");
+        closesocket(sock);
+        return INVALID_SOCKET_VALUE;
     }
 
     // 接続
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        printf("接続失敗\n");
-        close(sock);
-        return -1;
+    printf("%s:%d に接続しています...\n", host, port);
+    if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR_VALUE) {
+        printf("接続に失敗しました\n");
+        closesocket(sock);
+        return INVALID_SOCKET_VALUE;
     }
 
-    printf("サーバーに接続しました。\n");
+    printf("サーバーに接続しました\n");
 
     return sock;
 }
 
-// ボードデータを送信
-bool send_board(int socket_fd, const int64_t* buffer) {
-    ssize_t bytes_sent = send(socket_fd, buffer, BUFFER_SIZE, 0);
-    if (bytes_sent < 0) {
-        perror("送信エラー");
-        return false;
+// ボードデータを送信（リトルエンディアン）
+bool send_board(socket_t sock, const Board *board) {
+    int total_sent = 0;
+    int bytes_to_send = BOARD_DATA_SIZE;
+    const char *data = (const char*)board->cells;
+
+    while (total_sent < bytes_to_send) {
+        int sent = send(sock, data + total_sent, bytes_to_send - total_sent, 0);
+        if (sent == SOCKET_ERROR_VALUE) {
+            printf("送信エラー\n");
+            return false;
+        }
+        total_sent += sent;
     }
-    if (bytes_sent != BUFFER_SIZE) {
-        printf("警告: 完全なデータを送信できませんでした (%zd/%d bytes)\n", bytes_sent, BUFFER_SIZE);
-        return false;
-    }
+
     return true;
 }
 
-// ボードデータを受信
-bool receive_board(int socket_fd, int64_t* buffer) {
-    ssize_t total_received = 0;
-    char* buf_ptr = (char*)buffer;
+// ボードデータを受信（リトルエンディアン）
+bool receive_board(socket_t sock, Board *board) {
+    int total_received = 0;
+    int bytes_to_receive = BOARD_DATA_SIZE;
+    char *data = (char*)board->cells;
 
-    // 512バイト全てを受信するまでループ
-    while (total_received < BUFFER_SIZE) {
-        ssize_t bytes_received = recv(socket_fd, buf_ptr + total_received, BUFFER_SIZE - total_received, 0);
-        if (bytes_received < 0) {
-            perror("受信エラー");
+    while (total_received < bytes_to_receive) {
+        int received = recv(sock, data + total_received, bytes_to_receive - total_received, 0);
+        if (received == SOCKET_ERROR_VALUE) {
+            printf("受信エラー\n");
             return false;
         }
-        if (bytes_received == 0) {
+        if (received == 0) {
             printf("接続が切断されました\n");
             return false;
         }
-        total_received += bytes_received;
+        total_received += received;
     }
 
     return true;
 }
 
-// ソケットをクローズ
-void close_connection(int socket_fd) {
-    close(socket_fd);
+// ソケットを閉じる
+void close_socket(socket_t sock) {
+    if (sock != INVALID_SOCKET_VALUE) {
+        closesocket(sock);
+    }
 }
