@@ -687,6 +687,7 @@ TCP teardown:            20バイト × 5 = 100バイト
 5メッセージ合計:         20-25 RTT (!!)
 HTTP/2の多重化効果
 gRPC: 並列送信可能
+```
 ```mermaid
 sequenceDiagram
     participant C as Client
@@ -735,3 +736,7 @@ sequenceDiagram
 バイナリプロトコル: Protocol BuffersでJSONの約50%サイズ
 多重化: 複数リクエストを並列処理、待ち時間なし
 フロー制御: ウィンドウサイズ管理で効率的なデータ転送
+
+
+
+
