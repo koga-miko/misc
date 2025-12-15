@@ -4,7 +4,8 @@ gRPCサーバー実装 - 4つの通信方法を実装
 TLS/SSL暗号化を有効化
 """
 import grpc
-from concurrent import futures
+from grpc_reflection.v1alpha import reflection
+from concurrent import futures # pip install grpcio-reflection
 import time
 import demo_pb2
 import demo_pb2_grpc
@@ -78,8 +79,15 @@ def serve():
         DemoServiceServicer(), server
     )
 
-    # TLS/SSLを有効にしてポートにバインド
+    # Reflection Service を登録 ← ★リフレクションAPIを有効化するためにここを追加
+    SERVICE_NAMES = [
+        demo_pb2.DESCRIPTOR.services_by_name['DemoService'].full_name,
+        reflection.SERVICE_NAME,
+    ]
+    reflection.enable_server_reflection(SERVICE_NAMES, server)
+        # TLS/SSLを有効にしてポートにバインド
     port = '50051'
+    # server.add_insecure_port(f'[::]:{port}')
     server.add_secure_port(f'[::]:{port}', server_credentials)
 
     server.start()

@@ -7,7 +7,8 @@ import grpc
 import demo_pb2
 import demo_pb2_grpc
 import time
-
+import threading
+import queue
 
 def generate_client_streaming_requests():
     """Client Streaming用のリクエストを生成"""
@@ -18,13 +19,17 @@ def generate_client_streaming_requests():
         time.sleep(0.3)
 
 
-def generate_bidirectional_requests():
-    """Bidirectional Streaming用のリクエストを生成"""
-    messages = ["Hello", "How are you?", "gRPC is great!", "Goodbye"]
-    for msg in messages:
-        print(f"  → Sending: {msg}")
-        yield demo_pb2.BidirectionalRequest(message=msg)
-        time.sleep(0.5)
+def generate_bidirectional_requests(request_queue):
+    """Bidirectional Streaming用のリクエストを生成（キューベース）"""
+    try:
+        while True:
+            # キューから次のメッセージを取得（タイムアウトなし）
+            msg = request_queue.get()
+            if msg is None:  # 終了シグナル
+                break
+            yield demo_pb2.BidirectionalRequest(message=msg)
+    except Exception as e:
+        print(f"  ✗ Request generator error: {e}")
 
 
 def run():
@@ -36,6 +41,8 @@ def run():
     # クライアントの認証情報を設定
     credentials = grpc.ssl_channel_credentials(root_certificates=trusted_certs)
 
+    # # インセキュアチャネルを作成
+    # with grpc.insecure_channel('localhost:50051') as channel:
     # セキュアチャネルを作成
     with grpc.secure_channel('localhost:50051', credentials) as channel:
         stub = demo_pb2_grpc.DemoServiceStub(channel)
@@ -80,17 +87,77 @@ def run():
 
         time.sleep(1)
 
-        # 4. Bidirectional Streaming RPC
-        print("\n[4] Testing Bidirectional Streaming RPC")
+        # 4. Bidirectional Streaming RPC（送信・受信スレッド分離）
+        print("\n[4] Testing Bidirectional Streaming RPC (Async Send/Receive)")
         print("-" * 60)
         try:
+            # 送信用キュー
+            request_queue = queue.Queue()
+
+            # 受信完了を通知するイベント
+            receive_done = threading.Event()
+            receive_error = [None]  # エラーを格納するリスト
+
+            # ストリーミングコールを開始
             responses = stub.BidirectionalStreamingCall(
-                generate_bidirectional_requests()
+                generate_bidirectional_requests(request_queue)
             )
-            for response in responses:
-                print(f"✓ Received: {response.echo} (seq: {response.sequence})")
+
+            # 受信スレッド
+            def receive_thread():
+                """受信専用スレッド"""
+                try:
+                    print("  [Receive Thread] Started")
+                    for response in responses:
+                        print(f"  ✓ [Receive] {response.echo} (seq: {response.sequence})")
+                    print("  [Receive Thread] Completed")
+                except grpc.RpcError as e:
+                    receive_error[0] = e
+                    print(f"  ✗ [Receive] Error: {e.code()} - {e.details()}")
+                except Exception as e:
+                    receive_error[0] = e
+                    print(f"  ✗ [Receive] Unexpected error: {e}")
+                finally:
+                    receive_done.set()
+
+            # 送信スレッド
+            def send_thread():
+                """送信専用スレッド"""
+                try:
+                    print("  [Send Thread] Started")
+                    messages = ["Hello", "How are you?", "gRPC is great!", "Goodbye"]
+                    for msg in messages:
+                        print(f"  → [Send] {msg}")
+                        request_queue.put(msg)
+                        time.sleep(0.5)  # 送信間隔
+
+                    # 送信終了を通知
+                    request_queue.put(None)
+                    print("  [Send Thread] Completed")
+                except Exception as e:
+                    print(f"  ✗ [Send] Error: {e}")
+                    request_queue.put(None)  # 終了シグナル
+
+            # スレッド起動
+            receiver = threading.Thread(target=receive_thread, daemon=True)
+            sender = threading.Thread(target=send_thread, daemon=True)
+
+            receiver.start()
+            sender.start()
+
+            # 両方のスレッドが完了するまで待機
+            sender.join()
+            receive_done.wait()
+
+            if receive_error[0]:
+                print(f"✗ Bidirectional streaming completed with errors")
+            else:
+                print("✓ Bidirectional streaming completed successfully")
+
         except grpc.RpcError as e:
             print(f"✗ Error: {e.code()} - {e.details()}")
+        except Exception as e:
+            print(f"✗ Unexpected error: {e}")
 
         print("\n" + "=" * 60)
         print("All tests completed!")

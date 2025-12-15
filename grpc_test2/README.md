@@ -116,3 +116,43 @@ gRPC Client with TLS - Testing 4 Communication Patterns
 ✓ Received: Echo: Hello (seq: 1)
 ...
 ```
+## デバッグ方法
+### サービス一覧を取得
+`grpcurl -plaintext localhost:50051 list`
+
+### 特定のサービスのメソッド一覧
+`grpcurl -plaintext localhost:50051 list demo.DemoService`
+
+### メソッドの詳細（リクエスト/レスポンス型）
+`grpcurl -plaintext localhost:50051 describe demo.DemoService`
+
+### メソッドを呼び出し(インセキュア設定時)
+`grpcurl -plaintext -d '{"name": "Yoshi"}' localhost:50051 demo.DemoService/UnaryCall`
+
+### カスタム証明書を使う場合
+`grpcurl -cacert certs/server-cert.pem -d '{"name": "Yoshi"}' localhost:50051 demo.DemoService/UnaryCall`
+
+
+## 証明書の作成手順
+### サーバー秘密鍵を生成
+```
+openssl genrsa -out certs/server-key.pem 2048
+```
+
+### SANを含む証明書署名要求（CSR）を生成
+```
+openssl req -new -key certs/server-key.pem \
+  -out certs/server.csr \
+  -subj "//CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,DNS:127.0.0.1"
+```
+
+### 自己署名証明書を生成（SAN付き）
+```
+echo "subjectAltName=DNS:localhost,DNS:127.0.0.1" > certs/san.ext
+openssl x509 -req -days 365 \
+  -in certs/server.csr \
+  -signkey certs/server-key.pem \
+  -out certs/server-cert.pem \
+  -extfile certs/san.ext
+```
