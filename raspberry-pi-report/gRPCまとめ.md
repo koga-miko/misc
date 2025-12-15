@@ -666,7 +666,16 @@ graph TD
     Q6 -->|No| Q7{キャッシング重要?}
     Q7 -->|Yes| REST4[REST]
     Q7 -->|No| Both[どちらでも可]
-    
+    REST4 --> End[終了]
+    REST2 --> End
+    REST3 --> End
+    gRPC3 --> End
+    gRPC1 --> End
+    gRPC2 --> End
+    REST1 --> End
+    Both --> End
+    gRPC1 --> End
+
     style gRPC1 fill:#9f9
     style gRPC2 fill:#9f9
     style gRPC3 fill:#9f9
@@ -675,6 +684,7 @@ graph TD
     style REST3 fill:#99f
     style REST4 fill:#99f
     style Both fill:#ff9
+
 ```
 
 ### 6.2 パフォーマンス要約
@@ -696,3 +706,171 @@ graph TD
 - **公開Web API**: REST
 - **モバイル⇔バックエンド**: gRPC
 - **ブラウザ⇔サーバー**: REST (またはgRPC-Web)
+
+
+```mermaid
+graph TD
+    Start((開始))
+    Input[/ユーザー入力/]
+    Process[データ処理]
+    Decision{エラー?}
+    Error[\エラー出力\]
+    DB[(データベース)]
+    Prep{{初期化}}
+    Flag>完了フラグ]
+    End((終了))
+    
+    Start --> Prep
+    Prep ==> Input
+    Input --> Process
+    Process --> DB
+    DB -.-> Process
+    Process --> Decision
+    Decision -- Yes --> Error
+    Decision -- No --> Flag
+    Error --> End
+    Flag --> End
+    
+    style Start fill:#9f9
+    style End fill:#f99
+    style Decision fill:#ff9
+
+
+
+
+```
+
+
+```mermaid
+stateDiagram-v2
+    [*] --> State1
+    State1 --> State2
+    
+    note right of State1
+        これは重要な状態です
+        複数行のノートを
+        書くことができます
+    end note
+    
+    note left of State2: 簡潔なノート
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> CheckData
+    
+    state CheckData <<choice>>
+    CheckData --> Valid: データ正常
+    CheckData --> Invalid: データ異常
+    
+    Valid --> Process
+    Invalid --> Error
+    
+    Process --> [*]
+    Error --> [*]
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Start
+    
+    state fork_state <<fork>>
+    Start --> fork_state
+    fork_state --> Task1
+    fork_state --> Task2
+    
+    state join_state <<join>>
+    Task1 --> join_state
+    Task2 --> join_state
+    
+    join_state --> End
+    End --> [*]
+
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> PowerOff
+    
+    PowerOff --> Booting: 電源ON
+    Booting --> Initializing: ブートローダー完了
+    
+    state Initializing {
+        [*] --> HardwareInit
+        HardwareInit --> DriverInit
+        DriverInit --> ServiceInit
+        ServiceInit --> [*]
+    }
+    
+    Initializing --> Ready: 初期化完了
+    Initializing --> Error: 初期化失敗
+    
+    Ready --> Running: アプリ起動
+    
+    state Running {
+        [*] --> Normal
+        Normal --> LowPower: 省電力モード
+        LowPower --> Normal: 通常復帰
+        Normal --> Processing: タスク実行中
+        Processing --> Normal: 処理完了
+    }
+    
+    Running --> Shutting: シャットダウン要求
+    Error --> Shutting: エラー回復不可
+    Shutting --> PowerOff
+    
+    PowerOff --> [*]
+```
+
+```plantuml
+@startuml
+title Android Automotive - AudioFocus Management
+
+participant MediaApp as "Media App"
+participant AudioManager as "Audio Manager"
+participant AudioPolicy as "Audio Policy"
+participant HAL as "Audio HAL"
+
+note over MediaApp, HAL: メディア再生開始シーケンス
+
+MediaApp -> AudioManager: requestAudioFocus(AUDIOFOCUS_GAIN)
+note right of MediaApp
+  Usage: USAGE_MEDIA
+  Content: CONTENT_MUSIC
+end note
+
+AudioManager -> AudioPolicy: requestAudioFocus()
+note over AudioPolicy
+  既存のフォーカスホルダーを確認
+  ・Navigation: AUDIOFOCUS_GAIN_TRANSIENT
+  ・既存のMedia: なし
+end note
+
+alt Navigation音声再生中
+  AudioPolicy -> AudioPolicy: 優先度判定
+  note left
+    Navigation音声は
+    TRANSIENT_MAY_DUCKなので
+    メディアは取得可能
+  end note
+  AudioPolicy --> MediaApp: AUDIOFOCUS_REQUEST_GRANTED
+else 通話中
+  AudioPolicy --> MediaApp: AUDIOFOCUS_REQUEST_FAILED
+  note right: 通話が最優先のため拒否
+  MediaApp -> MediaApp: エラーハンドリング
+end
+
+MediaApp -> AudioManager: startPlayback()
+AudioManager -> HAL: setParameters("routing=AUDIO_DEVICE_OUT_BUS")
+note over HAL #lightblue
+  車両のオーディオバスに出力
+  ・スピーカー選択
+  ・音量調整
+  ・イコライザ設定
+end note
+
+HAL --> MediaApp: 再生開始完了
+
+@enduml
+
+```

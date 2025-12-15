@@ -1,0 +1,49 @@
+@startuml
+title Android Automotive - AudioFocus Management
+
+participant MediaApp as "Media App"
+participant AudioManager as "Audio Manager"
+participant AudioPolicy as "Audio Policy"
+participant HAL as "Audio HAL"
+
+note over MediaApp, HAL: メディア再生開始シーケンス
+
+MediaApp -> AudioManager: requestAudioFocus(AUDIOFOCUS_GAIN)
+note right of MediaApp
+  Usage: USAGE_MEDIA
+  Content: CONTENT_MUSIC
+end note
+
+AudioManager -> AudioPolicy: requestAudioFocus()
+note over AudioPolicy
+  既存のフォーカスホルダーを確認
+  ・Navigation: AUDIOFOCUS_GAIN_TRANSIENT
+  ・既存のMedia: なし
+end note
+
+alt Navigation音声再生中
+  AudioPolicy -> AudioPolicy: 優先度判定
+  note left
+    Navigation音声は
+    TRANSIENT_MAY_DUCKなので
+    メディアは取得可能
+  end note
+  AudioPolicy --> MediaApp: AUDIOFOCUS_REQUEST_GRANTED
+else 通話中
+  AudioPolicy --> MediaApp: AUDIOFOCUS_REQUEST_FAILED
+  note right: 通話が最優先のため拒否
+  MediaApp -> MediaApp: エラーハンドリング
+end
+
+MediaApp -> AudioManager: startPlayback()
+AudioManager -> HAL: setParameters("routing=AUDIO_DEVICE_OUT_BUS")
+note over HAL #lightblue
+  車両のオーディオバスに出力
+  ・スピーカー選択
+  ・音量調整
+  ・イコライザ設定
+end note
+
+HAL --> MediaApp: 再生開始完了
+
+@enduml
