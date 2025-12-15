@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package demo;
+
+// リクエストとレスポンスのメッセージ定義
+message SimpleRequest {
+  string name = 1;
+}
+
+message SimpleResponse {
+  string message = 1;
+}
+
+message StreamRequest {
+  int32 count = 1;
+}
+
+message StreamResponse {
+  int32 index = 1;
+  string message = 2;
+}
+
+message ClientStreamRequest {
+  string data = 1;
+}
+
+message ClientStreamResponse {
+  string result = 1;
+  int32 count = 2;
+}
+
+message BidiRequest {
+  string message = 1;
+}
+
+message BidiResponse {
+  string reply = 1;
+}
+
+// 4つの通信方法を持つサービス
+service DemoService {
+  // 1. Unary RPC: 単純なリクエスト-レスポンス
+  rpc UnaryCall(SimpleRequest) returns (SimpleResponse);
+
+  // 2. Server Streaming RPC: サーバーからのストリーミング
+  rpc ServerStreamingCall(StreamRequest) returns (stream StreamResponse);
+
+  // 3. Client Streaming RPC: クライアントからのストリーミング
+  rpc ClientStreamingCall(stream ClientStreamRequest) returns (ClientStreamResponse);
+
+  // 4. Bidirectional Streaming RPC: 双方向ストリーミング
+  rpc BidirectionalStreamingCall(stream BidiRequest) returns (stream BidiResponse);
+}
