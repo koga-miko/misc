@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package demo;
+
+// gRPCの4つの通信方法を定義
+service DemoService {
+  // 1. Unary RPC: 単一リクエスト -> 単一レスポンス
+  rpc UnaryCall(UnaryRequest) returns (UnaryResponse);
+
+  // 2. Server Streaming RPC: 単一リクエスト -> ストリームレスポンス
+  rpc ServerStreamingCall(ServerStreamingRequest) returns (stream ServerStreamingResponse);
+
+  // 3. Client Streaming RPC: ストリームリクエスト -> 単一レスポンス
+  rpc ClientStreamingCall(stream ClientStreamingRequest) returns (ClientStreamingResponse);
+
+  // 4. Bidirectional Streaming RPC: ストリームリクエスト <-> ストリームレスポンス
+  rpc BidirectionalStreamingCall(stream BidirectionalRequest) returns (stream BidirectionalResponse);
+}
+
+// Unary用のメッセージ
+message UnaryRequest {
+  string name = 1;
+}
+
+message UnaryResponse {
+  string message = 1;
+}
+
+// Server Streaming用のメッセージ
+message ServerStreamingRequest {
+  int32 count = 1;
+}
+
+message ServerStreamingResponse {
+  int32 number = 1;
+  string message = 2;
+}
+
+// Client Streaming用のメッセージ
+message ClientStreamingRequest {
+  int32 value = 1;
+}
+
+message ClientStreamingResponse {
+  int32 sum = 1;
+  int32 count = 2;
+}
+
+// Bidirectional Streaming用のメッセージ
+message BidirectionalRequest {
+  string message = 1;
+}
+
+message BidirectionalResponse {
+  string echo = 1;
+  int32 sequence = 2;
+}
