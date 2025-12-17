@@ -1,0 +1,74 @@
+site_name: システム設計書
+site_description: サンプルシステムの設計ドキュメント
+site_author: Development Team
+
+theme:
+  name: material
+  language: ja
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: ダークモードに切り替え
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: ライトモードに切り替え
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search:
+      lang: ja
+  - mermaid2
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
+nav:
+  - ホーム: index.md
+  - システム概要:
+    - アーキテクチャ: overview/architecture.md
+    - システム構成: overview/system-config.md
+  - シーケンス図:
+    - ユーザー認証フロー: diagrams/auth-sequence.md
+    - データ処理フロー: diagrams/data-processing.md
+    - API連携フロー: diagrams/api-integration.md
+  - ガイド:
+    - セットアップ手順: guides/setup.md
+    - デプロイ手順: guides/deployment.md

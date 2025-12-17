@@ -1,0 +1,85 @@
+# GitLab CI/CD設定ファイル
+# MkDocsサイトをGitLab Pagesにデプロイ
+
+image: python:3.11-slim
+
+# ステージ定義
+stages:
+  - test
+  - build
+  - deploy
+
+# キャッシュ設定（ビルド高速化）
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cache/pip
+
+# 共通の事前処理
+before_script:
+  - pip install --cache-dir .cache/pip -r requirements.txt
+
+# リンクチェック・ビルドテスト
+test:build:
+  stage: test
+  script:
+    - mkdocs build --strict --verbose
+    - echo "ビルドテスト完了"
+  artifacts:
+    paths:
+      - site/
+    expire_in: 1 hour
+  rules:
+    # マージリクエスト時
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # mainブランチへのプッシュ時
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# レビュー環境（マージリクエスト用）
+review:
+  stage: deploy
+  script:
+    - mkdocs build --strict
+    - mv site public
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://$CI_PROJECT_NAMESPACE.gitlab.io/-/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html
+    on_stop: stop-review
+    auto_stop_in: 1 week
+
+# レビュー環境の停止
+stop-review:
+  stage: deploy
+  script:
+    - echo "レビュー環境を停止します"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+
+# 本番デプロイ（GitLab Pages）
+# mainブランチへのプッシュ時のみ実行
+pages:
+  stage: deploy
+  script:
+    - mkdocs build --strict
+    # GitLab Pagesは public/ ディレクトリを公開
+    - mv site public
+  artifacts:
+    paths:
+      - public
+    expire_in: 30 days
+  rules:
+    # mainブランチ（またはデフォルトブランチ）へのプッシュ時のみ
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  environment:
+    name: production
+    url: https://$CI_PROJECT_NAMESPACE.gitlab.io/$CI_PROJECT_NAME
