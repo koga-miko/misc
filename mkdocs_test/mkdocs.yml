@@ -56,6 +56,10 @@ plugins:
   - search:
       lang: ja
   - mermaid2
+  - git-revision-date-localized:  # 最終更新日を表示: pip install mkdocs-git-revision-date-localized-plugin
+      type: datetime
+      fallback_to_build_date: true
+      locale: ja  
 
 extra_javascript:
   - https://unpkg.com/mermaid@10/dist/mermaid.min.js
