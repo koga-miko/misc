@@ -1,0 +1,77 @@
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+#include <thread>
+#include <chrono>
+
+void printUsage(const char* programName) {
+    printf("Usage: %s <size_mb> [interval_ms]\n", programName);
+    printf("  size_mb: Memory size in megabytes to allocate\n");
+    printf("  interval_ms: Access interval in milliseconds (default: 100)\n");
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        printUsage(argv[0]);
+        return 1;
+    }
+
+    long size_mb = std::atol(argv[1]);
+    int interval_ms = 100;
+    
+    if (argc >= 3) {
+        interval_ms = std::atoi(argv[2]);
+    }
+
+    if (size_mb <= 0) {
+        printf("Error: size_mb must be positive\n");
+        return 1;
+    }
+
+    size_t size_bytes = size_mb * 1024 * 1024;
+    
+    printf("[mem-check] Starting memory allocation test\n");
+    printf("[mem-check] Target size: %ld MB (%zu bytes)\n", size_mb, size_bytes);
+    printf("[mem-check] Access interval: %d ms\n", interval_ms);
+
+    // メモリ確保
+    printf("[mem-check] Allocating memory...\n");
+    char* buffer = (char*)malloc(size_bytes);
+    
+    if (buffer == nullptr) {
+        printf("[mem-check] Error: Failed to allocate %ld MB\n", size_mb);
+        return 1;
+    }
+
+    printf("[mem-check] Memory allocated successfully\n");
+
+    // メモリを初期化（確実にメモリを使用状態にする）
+    printf("[mem-check] Initializing memory...\n");
+    memset(buffer, 0xFF, size_bytes);
+    printf("[mem-check] Memory initialization complete\n");
+
+    // 定期的にメモリにアクセス
+    printf("[mem-check] Starting memory access loop (Press Ctrl+C to stop)\n");
+    
+    int iteration = 0;
+    while (1) {
+        // 定期的にメモリ全体に書き込み
+        for (size_t i = 0; i < size_bytes; i += 4096) {
+            buffer[i] = (char)(iteration % 256);
+        }
+
+        iteration++;
+        if (iteration % 10 == 0) {
+            printf("[mem-check] Iteration %d completed\n", iteration);
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+    }
+
+    // クリーンアップ（通常は到達しない）
+    free(buffer);
+    printf("[mem-check] Test complete\n");
+    
+    return 0;
+}
