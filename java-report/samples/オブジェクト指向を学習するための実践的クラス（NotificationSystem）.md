@@ -2,7 +2,7 @@
 
 ## 概要
 
-「通知システム」を題材に、オブジェクト指向の4つの主要概念（カプセル化・継承・多態・移譲）を
+「通知システム」を題材に、オブジェクト指向の4つの主要概念（カプセル化・継承・多態（ポリモーフィズム）・移譲（コンポジション））を
 1つのプログラムに統合した学習用サンプル。
 
 実行方法: `java NotificationSystem.java`
@@ -65,7 +65,7 @@ class EmailNotifier extends Notifier {
 - `Notifier` が `name` フィールドと `log()` メソッドを提供（共通部分の再利用）
 - `send()` を抽象メソッドとして定義し、各サブクラスに実装を強制
 
-### 3. 多態 — Notifier 型で統一的に扱う
+### 3. 多態（ポリモーフィズム） — Notifier 型で統一的に扱う
 
 異なるサブクラスのインスタンスを同じ型の変数で扱い、実行時に適切なメソッドが呼ばれる。
 
@@ -82,7 +82,7 @@ for (Notifier n : notifiers) {
 - 呼び出し側は `Notifier` 型だけを知っていればよい
 - 新しい通知手段を追加しても、呼び出し側のコードを変更する必要がない
 
-### 4. 移譲 — NotificationService → Notifier + RetryPolicy
+### 4. 移譲（コンポジション） — NotificationService → Notifier + RetryPolicy
 
 自クラスで処理を実装せず、専門のオブジェクトに処理を委ねる。
 
