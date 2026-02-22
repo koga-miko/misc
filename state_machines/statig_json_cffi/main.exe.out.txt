@@ -1,0 +1,63 @@
+=== 音声認識ステートマシン C言語呼び出しサンプル ===
+
+--- システム生成 ---
+  システム生成成功
+  [STATE] {"success":true,"voice_recognition_state":"Initializing","dynamic_grammar_state":"Idle"}
+
+--- シナリオ1: 基本的な音声認識フロー ---
+  [EVENT] InitializeComplete                       ->     [CB:ENTRY] {"sm":"VoiceRecognition","state":"Initializing","kind":"entry"}
+    [CB:EXIT] {"sm":"VoiceRecognition","state":"Initializing","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"Ready","kind":"entry"}
+{"success":true,"voice_recognition_state":"Ready","dynamic_grammar_state":"Idle"}
+  [EVENT] Ptt                                      ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"Ready","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"PreSession","kind":"entry"}
+    [CB:ENTRY] {"sm":"DynamicGrammar","state":"Idle","kind":"entry"}
+{"success":true,"voice_recognition_state":"PreSession","dynamic_grammar_state":"Idle"}
+  [EVENT] PreSessionResponse(approved)             ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"PreSession","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"Session","kind":"entry"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"Prepare","kind":"entry"}
+{"success":true,"voice_recognition_state":"Prepare","dynamic_grammar_state":"Idle"}
+  [EVENT] PrepareCompleteWithoutBargeIn            ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"Prepare","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"Guidance","kind":"entry"}
+{"success":true,"voice_recognition_state":"Guidance","dynamic_grammar_state":"Idle"}
+  [EVENT] GuidanceComplete                         ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"Guidance","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"Listening","kind":"entry"}
+{"success":true,"voice_recognition_state":"Listening","dynamic_grammar_state":"Idle"}
+  [EVENT] SpeechDetected                           ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"Listening","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"Speaking","kind":"entry"}
+{"success":true,"voice_recognition_state":"Speaking","dynamic_grammar_state":"Idle"}
+  [EVENT] RecognitionResult                        ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"Speaking","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"ConditionChecking","kind":"entry"}
+{"success":true,"voice_recognition_state":"ConditionChecking","dynamic_grammar_state":"Idle"}
+  [EVENT] TaskAndEnd                               ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"ConditionChecking","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"TaskExecAndEnd","kind":"entry"}
+{"success":true,"voice_recognition_state":"TaskExecAndEnd","dynamic_grammar_state":"Idle"}
+  [EVENT] TaskExecEndComplete                      ->     [CB:EXIT] {"sm":"VoiceRecognition","state":"TaskExecAndEnd","kind":"exit"}
+    [CB:EXIT] {"sm":"VoiceRecognition","state":"Session","kind":"exit"}
+    [CB:ENTRY] {"sm":"VoiceRecognition","state":"Ready","kind":"entry"}
+{"success":true,"voice_recognition_state":"Ready","dynamic_grammar_state":"Idle"}
+
+--- コールバックなしでの生成テスト ---
+  コールバックなし: OK
+  [STATE] {"success":true,"voice_recognition_state":"Initializing","dynamic_grammar_state":"Idle"}
+
+--- シナリオ3: 動的グラマ生成 ---
+  [EVENT] GenerateDynamicGrammar(g1)               ->     [CB:EXIT] {"sm":"DynamicGrammar","state":"Idle","kind":"exit"}
+    [CB:ENTRY] {"sm":"DynamicGrammar","state":"DataGetting","kind":"entry"}
+{"success":true,"voice_recognition_state":"Ready","dynamic_grammar_state":"DataGetting"}
+  [EVENT] NotifyData                               ->     [CB:EXIT] {"sm":"DynamicGrammar","state":"DataGetting","kind":"exit"}
+    [CB:ENTRY] {"sm":"DynamicGrammar","state":"Generating","kind":"entry"}
+{"success":true,"voice_recognition_state":"Ready","dynamic_grammar_state":"Generating"}
+  [EVENT] GenerationComplete                       ->     [CB:EXIT] {"sm":"DynamicGrammar","state":"Generating","kind":"exit"}
+    [CB:ENTRY] {"sm":"DynamicGrammar","state":"Idle","kind":"entry"}
+{"success":true,"voice_recognition_state":"Ready","dynamic_grammar_state":"Idle"}
+
+--- シナリオ6: 不正なJSON ---
+  [EVENT] Invalid JSON                             -> {"success":false,"voice_recognition_state":"Ready","dynamic_grammar_state":"Idle","message":"JSON parse error: expected ident at line 1 column 2"}
+  [EVENT] Unknown target                           -> {"success":false,"voice_recognition_state":"Ready","dynamic_grammar_state":"Idle","message":"JSON parse error: unknown variant `Unknown`, expected `VoiceRecognition` or `DynamicGrammar` at line 1 column 19"}
+
+--- 最終状態 ---
+  [STATE] {"success":true,"voice_recognition_state":"Ready","dynamic_grammar_state":"Idle"}
+
+--- システム破棄 ---
+  システム破棄完了

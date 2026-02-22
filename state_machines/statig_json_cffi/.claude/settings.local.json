@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:blog.theembeddedrustacean.com)",
+      "Bash(cargo init:*)",
+      "WebFetch(domain:crates.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(cargo add:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(cbindgen:*)",
+      "Bash(ls:*)",
+      "Bash(gcc:*)",
+      "Bash(cl)",
+      "Bash(PATH=\"$PATH:target/debug\" ./examples/main.exe:*)"
+    ]
+  }
+}
