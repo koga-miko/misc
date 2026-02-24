@@ -1,0 +1,94 @@
+@startuml MySm
+
+/'
+  This diagram is just a sample to show what the syntax can look like.
+  
+  We don't yet generate fully working examples for every supported language.
+  This starting template is language agnostic.
+'/
+
+' ///////////////////////////// STYLES /////////////////////////////
+' Define some colors for the states. Totally optional.
+skinparam state {
+    ' red style:
+    BackgroundColor<<red>> a20025
+    FontColor<<red>> white
+    ' dark style:
+    BackgroundColor<<dark>> 545454
+    FontColor<<dark>> white
+}
+
+' //////////////////////// STATE ORGANIZATION ///////////////////////
+' Note: StateSmith treats state names and events as case insensitive.
+' More info: https://github.com/StateSmith/StateSmith/wiki/PlantUML
+
+state OFF <<dark>>
+
+state ON_GROUP {
+    [*] -> ON1
+    state ON1
+    state ON2
+    state ON3 <<red>>
+}
+
+' ///////////////////////// STATE HANDLERS /////////////////////////
+' Syntax https://github.com/StateSmith/StateSmith/wiki/Behaviors
+
+[*] -> OFF
+
+'OFF
+OFF: enter / print("---");
+OFF --> ON1 : inc
+OFF --> ON_GROUP: toggle
+
+'ON_GROUP
+ON_GROUP --> OFF: toggle
+
+'ON1
+ON1: enter / print("$--");
+ON1 --> ON2 : inc
+ON1 --> OFF : dim
+
+'ON2
+ON2: enter / print("$$-");
+ON2 --> ON3 : inc
+ON2 --> ON1 : dim
+
+'ON3
+ON3: enter / print("$$$");
+ON3: enter / count += 1;
+ON3 --> ON2 : dim
+
+
+
+' //////////////////////// StateSmith config ////////////////////////
+' The below special comment block sets the StateSmith configuration.
+' More info: https://github.com/StateSmith/StateSmith/issues/335
+' Feel free to remove or modify it as needed.
+
+/'! $CONFIG : toml
+[RenderConfig]
+FileTop = """
+    // Whatever you put in this `FileTop` section will end up 
+    // being printed at the top of every generated code file.
+    """
+AutoExpandedVars = """
+    uint16_t count; // this var can be referenced in diagram
+    """
+
+[RenderConfig.C]
+# CFileExtension = ".inc" # if you want to include sm in another file
+HFileIncludes = """
+    #include <stdint.h> // for count var
+    """
+CFileIncludes = """
+    // #include "your_header_here.h"
+    """
+# IncludeGuardLabel = "{FILENAME}_H"
+
+# More C settings are available. See docs.
+
+[SmRunnerSettings]
+transpilerId = "C99"
+'/
+@enduml
