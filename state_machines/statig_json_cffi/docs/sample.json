@@ -1,0 +1,25 @@
+{
+  "name": "Dialog context table",
+  "version": "1.0.0",
+  "dialog_contexts": [
+    {
+      "id": "DlgGtx-001-001-1",
+      "selectable_intents": [
+        {
+          "id": "Intent_back",
+          "condition": "$.condition_result.back_available"
+        },
+        {
+          "id": "Intent_abort",
+          "condition": null
+        }
+      ],
+      "shown_list": [
+        {
+          "items": "$.ContactResult.items",
+          "recognizable_jsonpath": "$.contact_result.items[*].name"
+        }
+      ]
+    }
+  ]
+}
